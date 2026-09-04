@@ -32,3 +32,7 @@ Shopify 主题尚未加载追踪脚本；腾讯云当前公网入口仍是 HTTP 
 - GitHub：已推送提交 `906efea` 到 `main`。
 - Vercel：已发布并验证 `/users`、`/api/users`、`/api/events`、`/tkf-user-tracker.js` 均可访问。
 - 腾讯云：现有版本保持运行；因控制台登录态失效，本次代码尚未上传，待重新登录后再更新，服务器数据库不受影响。
+
+## 补充修复
+
+将跨域 `sendBeacon` 的请求体改为 CORS 简单请求允许的 `text/plain` 类型，避免 HTTPS Shopify 商店因预检导致点击事件丢失；服务端继续按 JSON 内容解析。修复已发布到 Vercel。
