@@ -71,7 +71,8 @@
 
     if (navigator.sendBeacon && !config.ingestKey) {
       try {
-        if (navigator.sendBeacon(config.endpoint, new Blob([body], { type: "application/json" }))) return;
+        // text/plain 是 CORS 的简单请求类型，避免跨域商店触发预检；服务端仍按 JSON 内容解析。
+        if (navigator.sendBeacon(config.endpoint, new Blob([body], { type: "text/plain;charset=UTF-8" }))) return;
       } catch (_error) {}
     }
     window.fetch(config.endpoint, { method: "POST", headers: headers, body: body, keepalive: true, credentials: "omit" })
