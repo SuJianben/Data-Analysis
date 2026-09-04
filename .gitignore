@@ -1,0 +1,14 @@
+node_modules/
+.next/
+.env
+.env.local
+data/*.db
+data/*.db-shm
+data/*.db-wal
+secrets/*.json
+npm-debug.log*
+*.zip
+.deploy-staging/
+tsconfig.tsbuildinfo
+
+.vercel

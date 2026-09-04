@@ -1,0 +1,5 @@
+⚠ Slow filesystem detected. The benchmark took 345ms. If \\?\D:\CODEX项目\数据分析面板\.next\dev is a network drive, consider moving it to a local folder.
+See more: https://nextjs.org/docs/app/guides/local-development
+⚠ Found a change in next.config.ts. Restarting the server to apply the changes...
+⚠ Slow filesystem detected. The benchmark took 345ms. If \\?\D:\CODEX项目\数据分析面板\.next\dev is a network drive, consider moving it to a local folder.
+See more: https://nextjs.org/docs/app/guides/local-development
