@@ -7,6 +7,7 @@ const links = [
   { href: "/", label: "概览", short: "概" },
   { href: "/menus", label: "菜单分析", short: "菜" },
   { href: "/global-clicks", label: "全局埋点", short: "点" },
+  { href: "/users", label: "用户行为", short: "人" },
   { href: "/sources", label: "数据源", short: "源" },
   { href: "/analysis", label: "AI 分析", short: "AI" },
 ];

@@ -27,6 +27,7 @@ npm start
 - `GOOGLE_OAUTH_CLIENT_ID`、`GOOGLE_OAUTH_CLIENT_SECRET`、`GOOGLE_OAUTH_REFRESH_TOKEN`：GA4 本机 OAuth 长期认证
 - `GOOGLE_APPLICATION_CREDENTIALS`：GA4 服务账号 JSON 的本机路径，作为备用认证方式
 - `CLARITY_API_TOKEN`：可选；不填写时可在数据源页面临时输入
+- `USER_EVENT_INGEST_KEY`：可选；设置后，用户事件接口要求请求头 `x-tkf-ingest-key` 匹配
 - `AI_BASE_URL`：兼容 OpenAI Chat Completions 的接口根地址
 - `AI_API_KEY`：AI 接口密钥
 - `AI_MODEL`：AI 模型名称
@@ -108,6 +109,50 @@ npm start
   "question": "分析菜单表现，并指出最值得优先验证的三个问题。"
 }
 ```
+
+### 用户行为事件接收
+
+`POST /api/events`
+
+接口接收单个或一批经过脱敏的用户行为事件。`visitorId` 应由站点生成稳定的匿名访客标识；不要直接提交姓名、邮箱、电话或未哈希的客户 ID。`eventId` 用于去重。
+
+```json
+{
+  "source": "shopify",
+  "event": {
+    "eventId": "evt_01J8YV7Q2QK3",
+    "visitorId": "visitor_01J8YV6X9M",
+    "sessionId": "session_01J8YV6Y2A",
+    "eventName": "global_click",
+    "occurredAt": "2026-09-04T08:40:00.000Z",
+    "pagePath": "/collections/barcelona",
+    "elementKey": "product:barcelona-home-jersey",
+    "elementLabel": "巴塞罗那主场球衣",
+    "destinationPath": "/products/barcelona-home-jersey",
+    "deviceCategory": "mobile"
+  }
+}
+```
+
+面板的“用户行为”页面会按 `visitorId` 汇总用户，并可以打开单个访客的完整事件时间线。当前 GA4 汇总报表不会自动产生用户级记录，需要站点把事件发送到此接口，或另行接入 GA4 BigQuery 事件导出。
+
+### Shopify 快速接入
+
+项目内的 `public/tkf-user-tracker.js` 是一个无框架追踪脚本。将它作为主题脚本加载后初始化：
+
+```html
+<script src="https://你的分析域名/tkf-user-tracker.js" defer></script>
+<script>
+  window.addEventListener("DOMContentLoaded", function () {
+    window.TKFSignalTracker.init({
+      endpoint: "https://你的分析域名/api/events",
+      source: "shopify"
+    });
+  });
+</script>
+```
+
+脚本会为浏览器保存匿名 `visitorId`，为当前标签页保存 `sessionId`，并记录链接、按钮及带 `data-tkf-track` 的控件。可在元素上增加 `data-tkf-key`、`data-tkf-label`、`data-tkf-section` 让报表显示更明确的名称；不需要采集个人信息。分析域名必须使用 HTTPS，不能让 HTTPS 商店页面请求 HTTP 地址。
 
 ## 数据位置
 

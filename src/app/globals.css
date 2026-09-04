@@ -220,6 +220,14 @@ a { color: inherit; text-decoration: none; }
 .target-cell { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
 .level-tag { display: inline-grid; place-items: center; min-width: 26px; height: 21px; padding: 0 5px; border: 1px solid var(--line-strong); border-radius: 3px; font: 9px/1 monospace; }
 .table-empty { padding: 60px; text-align: center; color: var(--muted); }
+.table-tools h2.inline-section-title { margin: 6px 0 0; font-size: 20px; letter-spacing: -.03em; }
+.table-link, .back-link { color: var(--blue); font-size: 11px; }
+.back-link { display: block; margin-bottom: 22px; }
+.user-table { min-width: 980px; }
+.user-table td:first-child, .user-event-table td:first-child { display: table-cell; }
+.user-table td strong, .user-event-table td strong { display: block; font-size: 12px; }
+.user-table td small, .user-event-table td small { display: block; margin-top: 4px; }
+.user-event-table { min-width: 1040px; }
 
 .heatmap-section { padding-top: 0; border-top-color: var(--ink); }
 .heatmap-tools { min-height: 80px; display: flex; gap: 24px; align-items: center; border-bottom: 1px solid var(--line); }

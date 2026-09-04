@@ -9,6 +9,9 @@ import type {
   HeatmapReportRow,
   GlobalClickMetricInput,
   GlobalClickReportRow,
+  UserEventInput,
+  UserEventRow,
+  UserSummaryRow,
   SiteMetricInput,
   SyncRun,
   TrendPoint,
@@ -145,6 +148,41 @@ export function saveGlobalClickMetrics(source: string, rows: GlobalClickMetricIn
   }
 }
 
+export function saveUserEvents(source: string, rows: UserEventInput[]) {
+  const statement = db.prepare(`
+    INSERT INTO user_events (
+      source, event_id, visitor_id, customer_id_hash, session_id, event_name, occurred_at,
+      page_path, element_key, element_label, page_section, destination_path, click_target,
+      device_category, metadata_json, received_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(source, event_id) DO NOTHING
+  `);
+  const receivedAt = isoNow();
+  let inserted = 0;
+  for (const row of rows) {
+    const result = statement.run(
+      source,
+      row.eventId,
+      row.visitorId,
+      row.customerIdHash || "",
+      row.sessionId || "",
+      row.eventName,
+      row.occurredAt,
+      row.pagePath || "/",
+      row.elementKey || "",
+      row.elementLabel || "",
+      row.pageSection || "",
+      row.destinationPath || "",
+      row.clickTarget || "",
+      row.deviceCategory || "unknown",
+      JSON.stringify(row.metadata || {}),
+      receivedAt,
+    );
+    inserted += result.changes;
+  }
+  return inserted;
+}
+
 export function saveSnapshot(payload: DataImportPayload | Record<string, unknown>, periodStart: string, periodEnd: string, source: string) {
   db.prepare(
     "INSERT INTO data_snapshots (source, period_start, period_end, payload_json, created_at) VALUES (?, ?, ?, ?, ?)",
@@ -158,8 +196,9 @@ export function importDataset(payload: DataImportPayload) {
     saveSiteMetrics(payload.source, payload.siteMetrics || []);
     saveHeatmapMetrics(payload.source, payload.heatmapMetrics || []);
     saveGlobalClickMetrics(payload.source, payload.globalClickMetrics || []);
+    saveUserEvents(payload.source, payload.userEvents || []);
     saveSnapshot(payload, payload.period.start, payload.period.end, payload.source);
-    const rowCount = (payload.menuMetrics?.length || 0) + (payload.siteMetrics?.length || 0) + (payload.heatmapMetrics?.length || 0) + (payload.globalClickMetrics?.length || 0);
+    const rowCount = (payload.menuMetrics?.length || 0) + (payload.siteMetrics?.length || 0) + (payload.heatmapMetrics?.length || 0) + (payload.globalClickMetrics?.length || 0) + (payload.userEvents?.length || 0);
     finishSync(syncId, "success", rowCount, "数据已导入");
     return { syncId, rowCount };
   } catch (error) {
@@ -289,6 +328,53 @@ export function getGlobalClickPagePaths(): string[] {
   return (db.prepare("SELECT page_path AS value FROM global_click_metrics GROUP BY page_path ORDER BY SUM(click_count) DESC, page_path ASC").all() as { value: string }[]).map((row) => row.value);
 }
 
+export function getUserSummaries(limit = 200): UserSummaryRow[] {
+  return db.prepare(`
+    SELECT
+      visitor_id AS visitorId,
+      MAX(customer_id_hash) AS customerIdHash,
+      MIN(occurred_at) AS firstSeenAt,
+      MAX(occurred_at) AS lastSeenAt,
+      COUNT(*) AS eventCount,
+      COUNT(DISTINCT event_name) AS eventTypes,
+      COUNT(DISTINCT page_path) AS pagesVisited,
+      SUM(CASE WHEN event_name = 'purchase' THEN 1 ELSE 0 END) AS purchaseCount
+    FROM user_events
+    GROUP BY visitor_id
+    ORDER BY lastSeenAt DESC
+    LIMIT ?
+  `).all(limit) as UserSummaryRow[];
+}
+
+export function getUserEvents(visitorId: string, limit = 500): UserEventRow[] {
+  const rows = db.prepare(`
+    SELECT
+      event_id AS eventId,
+      visitor_id AS visitorId,
+      customer_id_hash AS customerIdHash,
+      session_id AS sessionId,
+      event_name AS eventName,
+      occurred_at AS occurredAt,
+      page_path AS pagePath,
+      element_key AS elementKey,
+      element_label AS elementLabel,
+      page_section AS pageSection,
+      destination_path AS destinationPath,
+      click_target AS clickTarget,
+      device_category AS deviceCategory,
+      metadata_json AS metadataJson,
+      received_at AS receivedAt
+    FROM user_events
+    WHERE visitor_id = ?
+    ORDER BY occurred_at DESC
+    LIMIT ?
+  `).all(visitorId, limit) as (Omit<UserEventRow, "metadata"> & { metadataJson: string })[];
+  return rows.map((row) => ({
+    ...row,
+    metadata: JSON.parse(row.metadataJson || "{}") as Record<string, unknown>,
+  })) as UserEventRow[];
+}
+
 export function getLatestSnapshot(source: string): unknown | null {
   const row = db.prepare(
     "SELECT payload_json AS value FROM data_snapshots WHERE source = ? ORDER BY id DESC LIMIT 1",
@@ -348,10 +434,12 @@ export function getDatabaseStats() {
   const metricRows = db.prepare("SELECT COUNT(*) AS value FROM site_metrics").get() as CountRow;
   const snapshots = db.prepare("SELECT COUNT(*) AS value FROM data_snapshots").get() as CountRow;
   const lastAnalysis = db.prepare("SELECT MAX(created_at) AS value FROM analyses").get() as { value: string | null };
+  const userEvents = db.prepare("SELECT COUNT(*) AS value FROM user_events").get() as CountRow;
   return {
     menuRows: menuRows.value,
     metricRows: metricRows.value,
     snapshots: snapshots.value,
     lastAnalysis: lastAnalysis.value,
+    userEvents: userEvents.value,
   };
 }

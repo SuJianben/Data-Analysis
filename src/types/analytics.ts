@@ -46,6 +46,23 @@ export type GlobalClickMetricInput = {
   clickCount: number;
 };
 
+export type UserEventInput = {
+  eventId: string;
+  visitorId: string;
+  customerIdHash?: string;
+  sessionId?: string;
+  eventName: string;
+  occurredAt: string;
+  pagePath?: string;
+  elementKey?: string;
+  elementLabel?: string;
+  pageSection?: string;
+  destinationPath?: string;
+  clickTarget?: string;
+  deviceCategory?: string;
+  metadata?: Record<string, unknown>;
+};
+
 export type DataImportPayload = {
   source: string;
   period: { start: string; end: string };
@@ -53,6 +70,7 @@ export type DataImportPayload = {
   siteMetrics?: SiteMetricInput[];
   heatmapMetrics?: HeatmapMetricInput[];
   globalClickMetrics?: GlobalClickMetricInput[];
+  userEvents?: UserEventInput[];
   metadata?: Record<string, unknown>;
 };
 
@@ -85,6 +103,19 @@ export type MenuReportRow = {
 
 export type HeatmapReportRow = HeatmapMetricInput;
 export type GlobalClickReportRow = GlobalClickMetricInput;
+
+export type UserSummaryRow = {
+  visitorId: string;
+  customerIdHash: string;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  eventCount: number;
+  eventTypes: number;
+  pagesVisited: number;
+  purchaseCount: number;
+};
+
+export type UserEventRow = UserEventInput & { receivedAt: string };
 
 export type SyncRun = {
   id: number;
