@@ -26,3 +26,9 @@
 ## 遗留问题
 
 Shopify 主题尚未加载追踪脚本；腾讯云当前公网入口仍是 HTTP IP。正式接入前需要为分析服务配置 HTTPS 域名，并将脚本中的 endpoint 指向该域名，否则浏览器会阻止 HTTPS 商店页面请求 HTTP 接口。
+
+## 发布状态
+
+- GitHub：已推送提交 `906efea` 到 `main`。
+- Vercel：已发布并验证 `/users`、`/api/users`、`/api/events`、`/tkf-user-tracker.js` 均可访问。
+- 腾讯云：现有版本保持运行；因控制台登录态失效，本次代码尚未上传，待重新登录后再更新，服务器数据库不受影响。
