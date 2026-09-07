@@ -23,19 +23,32 @@ function normalizeGaDate(value: string) {
 }
 
 async function runReport(propertyId: string, accessToken: string, body: Record<string, unknown>) {
-  const response = await fetch(
-    `https://analyticsdata.googleapis.com/v1beta/properties/${encodeURIComponent(propertyId)}:runReport`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20_000);
+  let response: Response;
+  try {
+    response = await fetch(
+      `https://analyticsdata.googleapis.com/v1beta/properties/${encodeURIComponent(propertyId)}:runReport`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+        cache: "no-store",
+        signal: controller.signal,
       },
-      body: JSON.stringify(body),
-      cache: "no-store",
-    },
-  );
-  const payload = (await response.json()) as Ga4Response;
+    );
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("无法连接 GA4 Reporting API（请求超时）。请检查腾讯云到 Google 的出网代理配置。");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+  const payload = (await response.json().catch(() => ({}))) as Ga4Response;
   if (!response.ok) {
     const detail = payload.error?.message || `GA4 请求失败（${response.status}）`;
     throw new Error(detail);

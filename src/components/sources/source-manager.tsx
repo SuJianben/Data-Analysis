@@ -39,7 +39,17 @@ export function SourceManager({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const result = await response.json();
+      const raw = await response.text();
+      let result: { error?: string; rowCount?: number } = {};
+      try {
+        result = JSON.parse(raw) as typeof result;
+      } catch {
+        throw new Error(
+          response.status >= 500
+            ? `同步服务暂时不可用（HTTP ${response.status}）。请稍后重试。`
+            : "同步接口返回了无效内容，请检查服务器状态。",
+        );
+      }
       if (!response.ok) throw new Error(result.error || "同步失败");
       setNotice({ type: "success", message: `${source} 同步完成，共写入 ${result.rowCount} 行。` });
       router.refresh();

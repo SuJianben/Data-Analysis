@@ -13,8 +13,9 @@ const schema = z.object({
 });
 
 export async function POST(request: Request) {
-  const syncId = startSync("ga4");
+  let syncId: number | null = null;
   try {
+    syncId = startSync("ga4");
     const input = schema.parse(await request.json());
     const result = await fetchGa4Data(input);
     saveMenuMetrics("ga4", result.menuMetrics);
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, syncId, rowCount, ...result });
   } catch (error) {
     const message = error instanceof Error ? error.message : "GA4 同步失败";
-    finishSync(syncId, "failed", 0, message);
+    if (syncId !== null) finishSync(syncId, "failed", 0, message);
     return NextResponse.json({ ok: false, error: message }, { status: 400 });
   }
 }
