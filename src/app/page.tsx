@@ -42,7 +42,7 @@ export default function OverviewPage() {
               </div>
             </section>
           </div>
-          <section className="workspace-section sync-section"><div className="section-heading"><div><span className="eyebrow">DATA LINEAGE</span><h2>最近同步</h2></div><Link href="/sources">管理数据源 →</Link></div><SyncList runs={runs} /></section>
+          <section className="workspace-section sync-section"><div className="section-heading"><div><span className="eyebrow">DATA LINEAGE</span><h2>最近同步</h2></div></div><SyncList runs={runs} /></section>
         </>
       )}
     </div>

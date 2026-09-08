@@ -20,7 +20,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div>
             <span className="eyebrow">TURKFORMA / ANALYTICS</span>
           </div>
-          <Link className="button button-quiet" href="/sources">同步数据 <span aria-hidden="true">↗</span></Link>
         </header>
         <main>{children}</main>
       </div>

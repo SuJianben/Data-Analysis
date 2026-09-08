@@ -23,10 +23,10 @@ npm start
 复制 `.env.example` 为 `.env.local`，按需填写：
 
 - `GA4_PROPERTY_ID`：GA4 属性 ID
-- `GA4_ACCESS_TOKEN`：可选；不填写时可在数据源页面临时输入
+- `GA4_ACCESS_TOKEN`：可选；仅作为 OAuth Refresh Token 以外的临时认证方式
 - `GOOGLE_OAUTH_CLIENT_ID`、`GOOGLE_OAUTH_CLIENT_SECRET`、`GOOGLE_OAUTH_REFRESH_TOKEN`：GA4 本机 OAuth 长期认证
 - `GOOGLE_APPLICATION_CREDENTIALS`：GA4 服务账号 JSON 的本机路径，作为备用认证方式
-- `CLARITY_API_TOKEN`：可选；不填写时可在数据源页面临时输入
+- `CLARITY_API_TOKEN`：可选；配置后可供 Clarity 同步接口使用
 - `USER_EVENT_INGEST_KEY`：可选；设置后，用户事件接口要求请求头 `x-tkf-ingest-key` 匹配
 - `IMPORT_INGEST_KEY`：可选；设置后，标准化导入接口要求请求头 `x-tkf-import-key` 匹配
 - `AI_BASE_URL`：兼容 OpenAI Chat Completions 的接口根地址
@@ -205,7 +205,7 @@ GOOGLE_OAUTH_CLIENT_SECRET=你的ClientSecret
 GOOGLE_OAUTH_REFRESH_TOKEN=你的RefreshToken
 ```
 
-三项需同时填写。重启软件后，数据源页面显示“OAuth 已固定”，同步时会自动换取短期 Access Token。
+三项需同时填写。重启软件后，同步接口会自动换取短期 Access Token。
 
 `.env.local` 已被 Git 忽略，凭据不会进入代码仓库或数据库。
 
@@ -214,7 +214,7 @@ GOOGLE_OAUTH_REFRESH_TOKEN=你的RefreshToken
 1. 在 Google Cloud 创建服务账号并下载 JSON 密钥。
 2. 将文件保存为 `secrets/ga4-service-account.json`。
 3. 在 GA4 属性 `546810508` 的“媒体资源访问权限管理”中，将 JSON 内的 `client_email` 添加为“查看者”。
-4. 重启软件。数据源页面显示“服务账号已固定”后，无需再输入临时 Access Token。
+4. 重启软件。服务账号认证生效后，无需再输入临时 Access Token。
 
 服务账号 JSON 已被 Git 忽略，不会进入代码仓库。
 
@@ -226,4 +226,4 @@ GOOGLE_OAUTH_REFRESH_TOKEN=你的RefreshToken
 CLARITY_API_TOKEN=你的长期Token
 ```
 
-重启软件后，数据源页面会显示“Token 已固定”。
+重启软件后，Clarity 同步接口会使用该 Token。

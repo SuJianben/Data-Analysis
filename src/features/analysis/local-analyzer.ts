@@ -26,7 +26,7 @@ export function runLocalAnalysis(dataset: AnalysisDataset): AnalysisResult {
     findings.push({
       title: "等待真实数据",
       evidence: "当前数据库中还没有菜单点击记录。",
-      recommendation: "先导入演示数据验证页面，再在数据源中同步 GA4。",
+      recommendation: "等待本机自动同步 GA4，或执行一次本机同步脚本。",
       severity: "attention",
     });
   } else {
