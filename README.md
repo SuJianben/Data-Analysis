@@ -28,6 +28,10 @@ npm start
 - `GOOGLE_APPLICATION_CREDENTIALS`：GA4 服务账号 JSON 的本机路径，作为备用认证方式
 - `CLARITY_API_TOKEN`：可选；配置后可供 Clarity 同步接口使用
 - `USER_EVENT_INGEST_KEY`：可选；设置后，用户事件接口要求请求头 `x-tkf-ingest-key` 匹配
+- `USER_EVENT_ALLOWED_ORIGINS`：允许从浏览器提交事件的店铺来源，多个来源用英文逗号分隔
+- `USER_EVENT_FORWARD_URL`、`USER_EVENT_FORWARD_KEY`：可选；让 HTTPS 接入层把事件转发到持久化服务器
+- `USER_EVENT_API_URL`、`USER_EVENT_READ_KEY`：可选；让 Vercel 或本机面板从 Cloudflare Worker 读取用户事件
+- `TKF_DATABASE_PATH`：可选；指定 SQLite 持久化文件位置
 - `IMPORT_INGEST_KEY`：可选；设置后，标准化导入接口要求请求头 `x-tkf-import-key` 匹配
 - `AI_BASE_URL`：兼容 OpenAI Chat Completions 的接口根地址
 - `AI_API_KEY`：AI 接口密钥
@@ -141,7 +145,7 @@ node scripts/sync-ga4-to-tencent.mjs --start-date 2026-09-01 --end-date 2026-09-
 
 `POST /api/events`
 
-接口接收单个或一批经过脱敏的用户行为事件。`visitorId` 应由站点生成稳定的匿名访客标识；不要直接提交姓名、邮箱、电话或未哈希的客户 ID。`eventId` 用于去重。
+接口接收单个或一批经过脱敏的用户行为事件。`visitorId` 应由站点生成稳定的匿名访客标识；登录用户只提交不可逆的 `customerIdHash`，不要提交姓名、邮箱、电话或原始客户 ID。`eventId` 用于去重。
 
 ```json
 {
@@ -161,11 +165,36 @@ node scripts/sync-ga4-to-tencent.mjs --start-date 2026-09-01 --end-date 2026-09-
 }
 ```
 
-面板的“用户行为”页面会按 `visitorId` 汇总用户，并可以打开单个访客的完整事件时间线。当前 GA4 汇总报表不会自动产生用户级记录，需要站点把事件发送到此接口，或另行接入 GA4 BigQuery 事件导出。
+面板的“用户行为”页面会分别展示匿名访客和登录客户：匿名访客按浏览器标识汇总，登录客户按客户哈希跨设备合并。一个浏览器只出现过一个登录客户时，登录前的匿名行为会安全归入该客户；共享浏览器出现多个客户时，无法确认归属的匿名行为仍单独保留，避免串号。当前 GA4 汇总报表不会自动产生用户级记录，需要站点把事件发送到此接口，或另行接入 GA4 BigQuery 事件导出。
+
+### Cloudflare Worker + D1
+
+线上用户事件以 Cloudflare D1 为唯一数据源，Worker 地址不包含结尾斜杠：
+
+```text
+USER_EVENT_API_URL=https://你的Worker地址/v1
+USER_EVENT_READ_KEY=Cloudflare Worker 的只读密钥
+```
+
+未配置 `USER_EVENT_API_URL` 时，本机继续读取 `data/analytics.db`，方便离线开发。
+
+### Vercel HTTPS 接入层
+
+Shopify 页面只能向 HTTPS 地址稳定发送事件。Vercel 配置：
+
+```text
+USER_EVENT_FORWARD_URL=https://你的Worker地址/v1/events
+USER_EVENT_FORWARD_KEY=Cloudflare Worker 的服务端写入密钥
+USER_EVENT_ALLOWED_ORIGINS=https://turkforma.com,https://www.turkforma.com
+```
+
+正式店铺可以直接提交到 Worker；Vercel 转发接口保留为兼容入口。两种方式最终都写入 D1，不会落到 Vercel 临时磁盘。
 
 ### Shopify 快速接入
 
-项目内的 `public/tkf-user-tracker.js` 是一个无框架追踪脚本。将它作为主题脚本加载后初始化：
+项目内的 `public/tkf-user-identity.js` 是身份与传输模块。正式店铺由现有全局点击脚本调用它，不再注册第二个点击监听器；主题只需提供 HTTPS 接口地址和 Shopify Liquid 生成的客户哈希。
+
+旧的 `public/tkf-user-tracker.js` 仍可用于没有现成全局点击脚本的独立站，初始化方式如下：
 
 ```html
 <script src="https://你的分析域名/tkf-user-tracker.js" defer></script>

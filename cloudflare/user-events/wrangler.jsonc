@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tkf-signal-user-events",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-08",
+  "workers_dev": true,
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.1
+  },
+  "vars": {
+    "ALLOWED_ORIGINS": "https://turkforma.com,https://www.turkforma.com"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "tkf-signal-user-events",
+      "database_id": "08e2bd67-8cc8-4bb5-83f0-19015b58f009",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

@@ -105,13 +105,15 @@ export type HeatmapReportRow = HeatmapMetricInput;
 export type GlobalClickReportRow = GlobalClickMetricInput;
 
 export type UserSummaryRow = {
-  visitorId: string;
-  customerIdHash: string;
+  identityKey: string;
+  identityType: "customer" | "visitor";
+  identityId: string;
   firstSeenAt: string;
   lastSeenAt: string;
   eventCount: number;
   eventTypes: number;
   pagesVisited: number;
+  visitorCount: number;
   purchaseCount: number;
 };
 

@@ -7,6 +7,7 @@ const DEPLOY_SNAPSHOT_PATH = path.join(DATA_DIRECTORY, "analytics-deploy.db");
 const RUNTIME_DATA_DIRECTORY = path.join("/tmp", "tkf-signal");
 
 function databasePath() {
+  if (process.env.TKF_DATABASE_PATH) return path.resolve(process.env.TKF_DATABASE_PATH);
   if (!process.env.VERCEL) return path.join(DATA_DIRECTORY, "analytics.db");
 
   mkdirSync(RUNTIME_DATA_DIRECTORY, { recursive: true });
@@ -22,8 +23,9 @@ type GlobalWithDatabase = typeof globalThis & {
 };
 
 function createDatabase() {
-  mkdirSync(DATA_DIRECTORY, { recursive: true });
-  const database = new Database(databasePath());
+  const resolvedDatabasePath = databasePath();
+  mkdirSync(path.dirname(resolvedDatabasePath), { recursive: true });
+  const database = new Database(resolvedDatabasePath);
   database.pragma("busy_timeout = 5000");
   database.pragma("journal_mode = WAL");
   database.pragma("foreign_keys = ON");

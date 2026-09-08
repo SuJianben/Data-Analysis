@@ -7,6 +7,14 @@ export const appConfig = {
   googleApplicationCredentials: process.env.GOOGLE_APPLICATION_CREDENTIALS || "",
   clarityApiToken: process.env.CLARITY_API_TOKEN || "",
   userEventIngestKey: process.env.USER_EVENT_INGEST_KEY || "",
+  userEventForwardUrl: process.env.USER_EVENT_FORWARD_URL || "",
+  userEventForwardKey: process.env.USER_EVENT_FORWARD_KEY || "",
+  userEventAllowedOrigins: (process.env.USER_EVENT_ALLOWED_ORIGINS || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean),
+  userEventApiUrl: (process.env.USER_EVENT_API_URL || "").replace(/\/$/, ""),
+  userEventReadKey: process.env.USER_EVENT_READ_KEY || "",
   importIngestKey: process.env.IMPORT_INGEST_KEY || "",
   aiBaseUrl: (process.env.AI_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, ""),
   aiApiKey: process.env.AI_API_KEY || "",

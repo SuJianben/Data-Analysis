@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
-import { getUserEvents } from "@/services/database/repositories";
+import { parseUserIdentityKey } from "@/features/users/identity";
+import { loadUserEvents } from "@/services/connectors/user-events";
 
 export const runtime = "nodejs";
 
 export async function GET(_request: Request, context: { params: Promise<{ visitorId: string }> }) {
   const { visitorId } = await context.params;
-  if (!visitorId || visitorId.length > 160) {
+  const identity = parseUserIdentityKey(visitorId);
+  if (!identity) {
     return NextResponse.json({ ok: false, error: "用户标识无效。" }, { status: 400 });
   }
-  return NextResponse.json({ ok: true, visitorId, events: getUserEvents(visitorId) });
+  return NextResponse.json({ ok: true, identity, events: await loadUserEvents(identity.key) });
 }

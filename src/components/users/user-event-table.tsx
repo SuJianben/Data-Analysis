@@ -10,7 +10,7 @@ export function UserEventTable({ rows }: { rows: UserEventRow[] }) {
   return (
     <div className="table-scroll">
       <table className="data-table user-event-table">
-        <thead><tr><th>时间</th><th>事件</th><th>页面</th><th>元素</th><th>去向</th><th>设备</th></tr></thead>
+        <thead><tr><th>时间</th><th>事件</th><th>页面</th><th>元素</th><th>去向</th><th>设备</th><th>来源身份</th></tr></thead>
         <tbody>
           {rows.map((row) => (
             <tr key={row.eventId}>
@@ -20,6 +20,7 @@ export function UserEventTable({ rows }: { rows: UserEventRow[] }) {
               <td><strong>{row.elementLabel || row.elementKey || "—"}</strong><small>{row.pageSection || ""}</small></td>
               <td className="target-cell" title={row.destinationPath}>{row.destinationPath || "—"}</td>
               <td>{row.deviceCategory || "unknown"}</td>
+              <td><strong>{row.customerIdHash ? "登录" : "匿名"}</strong><small>{row.visitorId.slice(0, 10)}</small></td>
             </tr>
           ))}
         </tbody>
