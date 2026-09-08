@@ -1,7 +1,9 @@
 import { corsHeaders, hasReadAccess, hasServerIngestAccess, isBrowserOriginAllowed, json } from "./http";
+import { handleAnalyticsRequest } from "./analytics-routes";
 import { getUserEvents, getUserSummaries, saveEvents } from "./repository";
 import type { Env } from "./types";
 import { parseIdentityKey, parseUserEventPayload } from "./validation";
+import { parseDateRange } from "./date-range";
 
 const MAX_BODY_BYTES = 256_000;
 
@@ -27,16 +29,25 @@ async function ingest(request: Request, env: Env) {
 
 async function listUsers(request: Request, env: Env) {
   if (!hasReadAccess(request, env)) return json(request, env, { ok: false, error: "读取凭证无效。" }, 401);
-  const value = Number(new URL(request.url).searchParams.get("limit") || 200);
+  const url = new URL(request.url);
+  const value = Number(url.searchParams.get("limit") || 200);
   const limit = Number.isFinite(value) ? Math.min(Math.max(Math.floor(value), 1), 500) : 200;
-  return json(request, env, { ok: true, rows: await getUserSummaries(env, limit) });
+  try {
+    return json(request, env, { ok: true, rows: await getUserSummaries(env, limit, parseDateRange(url)) });
+  } catch (error) {
+    return json(request, env, { ok: false, error: error instanceof Error ? error.message : "时间范围不正确。" }, 400);
+  }
 }
 
 async function userDetail(request: Request, env: Env, rawIdentityKey: string) {
   if (!hasReadAccess(request, env)) return json(request, env, { ok: false, error: "读取凭证无效。" }, 401);
   const identity = parseIdentityKey(rawIdentityKey);
   if (!identity) return json(request, env, { ok: false, error: "用户标识无效。" }, 400);
-  return json(request, env, { ok: true, identity, events: await getUserEvents(env, identity.key, 500) });
+  try {
+    return json(request, env, { ok: true, identity, events: await getUserEvents(env, identity.key, 500, parseDateRange(new URL(request.url))) });
+  } catch (error) {
+    return json(request, env, { ok: false, error: error instanceof Error ? error.message : "时间范围不正确。" }, 400);
+  }
 }
 
 export default {
@@ -49,6 +60,8 @@ export default {
     if (request.method === "GET" && url.pathname === "/health") {
       return json(request, env, { ok: true, service: "tkf-signal-user-events", storage: "cloudflare-d1" });
     }
+    const analyticsResponse = await handleAnalyticsRequest(request, env, url.pathname);
+    if (analyticsResponse) return analyticsResponse;
     if (request.method === "POST" && url.pathname === "/v1/events") return ingest(request, env);
     if (request.method === "GET" && url.pathname === "/v1/users") return listUsers(request, env);
     if (request.method === "GET" && url.pathname.startsWith("/v1/users/")) {

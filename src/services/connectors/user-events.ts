@@ -5,7 +5,7 @@ import {
   getUserEvents as getLocalUserEvents,
   getUserSummaries as getLocalUserSummaries,
 } from "@/services/database/user-event-repository";
-import type { UserEventRow, UserSummaryRow } from "@/types/analytics";
+import type { DateRangeOptions, UserEventRow, UserSummaryRow } from "@/types/analytics";
 
 type UserSummaryResponse = { ok: boolean; rows?: UserSummaryRow[]; error?: string };
 type UserDetailResponse = { ok: boolean; events?: UserEventRow[]; error?: string };
@@ -26,14 +26,25 @@ async function remoteRequest<T extends { ok: boolean; error?: string }>(path: st
   return payload;
 }
 
-export async function loadUserSummaries(limit = 200): Promise<UserSummaryRow[]> {
-  if (!appConfig.userEventApiUrl) return getLocalUserSummaries(limit);
-  const payload = await remoteRequest<UserSummaryResponse>(`/users?limit=${encodeURIComponent(limit)}`);
+function rangeQuery(options: DateRangeOptions) {
+  const query = new URLSearchParams();
+  if (options.startDate) query.set("startDate", options.startDate);
+  if (options.endDate) query.set("endDate", options.endDate);
+  return query;
+}
+
+export async function loadUserSummaries(limit = 200, options: DateRangeOptions = {}): Promise<UserSummaryRow[]> {
+  if (!appConfig.userEventApiUrl) return getLocalUserSummaries(limit, options);
+  const query = rangeQuery(options);
+  query.set("limit", String(limit));
+  const payload = await remoteRequest<UserSummaryResponse>(`/users?${query.toString()}`);
   return payload.rows || [];
 }
 
-export async function loadUserEvents(identityKey: string, limit = 500): Promise<UserEventRow[]> {
-  if (!appConfig.userEventApiUrl) return getLocalUserEvents(identityKey, limit);
-  const payload = await remoteRequest<UserDetailResponse>(`/users/${encodeURIComponent(identityKey)}`);
+export async function loadUserEvents(identityKey: string, limit = 500, options: DateRangeOptions = {}): Promise<UserEventRow[]> {
+  if (!appConfig.userEventApiUrl) return getLocalUserEvents(identityKey, limit, options);
+  const query = rangeQuery(options);
+  const suffix = query.size ? `?${query.toString()}` : "";
+  const payload = await remoteRequest<UserDetailResponse>(`/users/${encodeURIComponent(identityKey)}${suffix}`);
   return (payload.events || []).slice(0, limit);
 }

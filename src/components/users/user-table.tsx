@@ -7,7 +7,7 @@ function formatDate(value: string) {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString("zh-CN", { hour12: false });
 }
 
-export function UserTable({ rows }: { rows: UserSummaryRow[] }) {
+export function UserTable({ rows, rangeQuery }: { rows: UserSummaryRow[]; rangeQuery: string }) {
   if (!rows.length) {
     return <div className="table-empty">暂未收到用户级行为数据。接入事件后，这里会按访客展示行为摘要。</div>;
   }
@@ -26,7 +26,7 @@ export function UserTable({ rows }: { rows: UserSummaryRow[] }) {
               <td>{formatNumber(row.pagesVisited)}</td>
               <td>{formatNumber(row.eventCount)}</td>
               <td>{formatNumber(row.purchaseCount)}</td>
-              <td className="number-cell"><Link className="table-link" href={`/users/${encodeURIComponent(row.identityKey)}`}>查看行为 →</Link></td>
+              <td className="number-cell"><Link className="table-link" href={`/users/${encodeURIComponent(row.identityKey)}?${rangeQuery}`}>查看行为 →</Link></td>
             </tr>
           ))}
         </tbody>

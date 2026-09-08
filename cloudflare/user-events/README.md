@@ -1,6 +1,6 @@
 # TKF Signal User Events Worker
 
-该子项目只负责两件事：Worker 提供用户行为接口，D1 持久保存脱敏后的事件。它不保存姓名、邮箱、电话或 Shopify 原始客户 ID。
+该子项目负责保存 TKF 的 GA4 汇总报表与脱敏用户行为。D1 不保存姓名、邮箱、电话或 Shopify 原始客户 ID。
 
 ## 接口
 
@@ -8,6 +8,13 @@
 - `POST /v1/events`：店铺浏览器或持有服务端写入密钥的系统提交事件。
 - `GET /v1/users`：持有只读密钥的服务端读取用户摘要。
 - `GET /v1/users/:identityKey`：持有只读密钥的服务端读取单个用户行为。
+- `POST /v1/analytics/import`：持有服务端写入密钥的本机同步任务覆盖导入指定日期范围。
+- `GET /v1/analytics/overview`：读取概览指标、趋势和高频菜单。
+- `GET /v1/analytics/menus`：读取菜单点击明细。
+- `GET /v1/analytics/global-clicks`：读取全局点击明细。
+- `GET /v1/analytics/dataset`：读取 AI 分析使用的数据集。
+
+所有读取接口都支持 `startDate=YYYY-MM-DD&endDate=YYYY-MM-DD`。日期筛选在 D1 查询层执行，概览、表格、用户行为和 AI 使用同一统计范围。
 
 ## 本机开发
 

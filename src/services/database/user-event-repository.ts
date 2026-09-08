@@ -1,5 +1,5 @@
 import { db } from "@/services/database/db";
-import type { UserEventInput, UserEventRow, UserSummaryRow } from "@/types/analytics";
+import type { DateRangeOptions, UserEventInput, UserEventRow, UserSummaryRow } from "@/types/analytics";
 
 const isoNow = () => new Date().toISOString();
 
@@ -33,6 +33,19 @@ const RESOLVED_USER_EVENTS_CTE = `
     JOIN visitor_accounts ON visitor_accounts.visitor_id = user_events.visitor_id
   )
 `;
+
+function eventDateFilter(options: DateRangeOptions, extra: string[] = []) {
+  const conditions = [...extra];
+  const values: string[] = [];
+  if (options.startDate) { conditions.push("occurred_at >= ?"); values.push(`${options.startDate}T00:00:00.000Z`); }
+  if (options.endDate) {
+    const end = new Date(`${options.endDate}T00:00:00.000Z`);
+    end.setUTCDate(end.getUTCDate() + 1);
+    conditions.push("occurred_at < ?");
+    values.push(`${end.toISOString().slice(0, 10)}T00:00:00.000Z`);
+  }
+  return { clause: conditions.length ? `WHERE ${conditions.join(" AND ")}` : "", values };
+}
 
 export function saveUserEvents(source: string, rows: UserEventInput[]) {
   const statement = db.prepare(`
@@ -72,7 +85,8 @@ export function saveUserEvents(source: string, rows: UserEventInput[]) {
   return inserted;
 }
 
-export function getUserSummaries(limit = 200): UserSummaryRow[] {
+export function getUserSummaries(limit = 200, options: DateRangeOptions = {}): UserSummaryRow[] {
+  const filter = eventDateFilter(options);
   return db.prepare(`${RESOLVED_USER_EVENTS_CTE}
     SELECT
       identity_key AS identityKey,
@@ -86,13 +100,15 @@ export function getUserSummaries(limit = 200): UserSummaryRow[] {
       COUNT(DISTINCT visitor_id) AS visitorCount,
       SUM(CASE WHEN event_name = 'purchase' THEN 1 ELSE 0 END) AS purchaseCount
     FROM resolved_user_events
+    ${filter.clause}
     GROUP BY identity_key, identity_type, identity_id
     ORDER BY lastSeenAt DESC
     LIMIT ?
-  `).all(limit) as UserSummaryRow[];
+  `).all(...filter.values, limit) as UserSummaryRow[];
 }
 
-export function getUserEvents(identityKey: string, limit = 500): UserEventRow[] {
+export function getUserEvents(identityKey: string, limit = 500, options: DateRangeOptions = {}): UserEventRow[] {
+  const filter = eventDateFilter(options, ["identity_key = ?"]);
   const rows = db.prepare(`${RESOLVED_USER_EVENTS_CTE}
     SELECT
       event_id AS eventId,
@@ -111,10 +127,10 @@ export function getUserEvents(identityKey: string, limit = 500): UserEventRow[] 
       metadata_json AS metadataJson,
       received_at AS receivedAt
     FROM resolved_user_events
-    WHERE identity_key = ?
+    ${filter.clause}
     ORDER BY occurred_at DESC
     LIMIT ?
-  `).all(identityKey, limit) as (Omit<UserEventRow, "metadata"> & { metadataJson: string })[];
+  `).all(identityKey, ...filter.values, limit) as (Omit<UserEventRow, "metadata"> & { metadataJson: string })[];
   return rows.map((row) => ({
     ...row,
     metadata: JSON.parse(row.metadataJson || "{}") as Record<string, unknown>,

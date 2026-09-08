@@ -84,6 +84,11 @@ export type DashboardSummary = {
   latestSync: string | null;
 };
 
+export type DateRangeOptions = {
+  startDate?: string;
+  endDate?: string;
+};
+
 export type TrendPoint = {
   date: string;
   clicks: number;

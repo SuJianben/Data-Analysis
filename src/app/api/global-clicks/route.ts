@@ -1,17 +1,18 @@
 import { NextResponse } from "next/server";
-import { getGlobalClickPagePaths, getGlobalClickReportRows } from "@/services/database/repositories";
+import { loadGlobalClickReport } from "@/services/connectors/analytics";
+import { resolveDateRange } from "@/features/date-range/date-range";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
+  const range = resolveDateRange(Object.fromEntries(url.searchParams.entries()));
+  const report = await loadGlobalClickReport({
+    pagePath: url.searchParams.get("pagePath") || undefined,
+    ...range,
+  });
   return NextResponse.json({
     ok: true,
-    paths: getGlobalClickPagePaths(),
-    rows: getGlobalClickReportRows({
-      pagePath: url.searchParams.get("pagePath") || undefined,
-      startDate: url.searchParams.get("startDate") || undefined,
-      endDate: url.searchParams.get("endDate") || undefined,
-    }),
+    ...report,
   });
 }

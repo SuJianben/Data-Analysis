@@ -1,10 +1,12 @@
 import { GlobalClickTable } from "@/components/global-clicks/global-click-table";
-import { getGlobalClickReportRows } from "@/services/database/repositories";
+import { loadGlobalClickReport } from "@/services/connectors/analytics";
+import { resolveDateRange, type DateRangeParams } from "@/features/date-range/date-range";
 
 export const dynamic = "force-dynamic";
 
-export default function GlobalClicksPage() {
-  const rows = getGlobalClickReportRows();
+export default async function GlobalClicksPage({ searchParams }: { searchParams: Promise<DateRangeParams> }) {
+  const range = resolveDateRange(await searchParams);
+  const { rows } = await loadGlobalClickReport(range);
   return (
     <div className="page page-enter">
       <header className="page-heading compact-heading">

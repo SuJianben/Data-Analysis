@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { AnalysisResult } from "@/types/analytics";
+import type { DateRange } from "@/features/date-range/date-range";
 import { formatDateTime } from "@/utils/format";
 
 function displayText(value: unknown): string {
@@ -16,7 +17,7 @@ function displayText(value: unknown): string {
   return "—";
 }
 
-export function AnalysisWorkspace({ initialResult }: { initialResult: AnalysisResult | null }) {
+export function AnalysisWorkspace({ initialResult, dateRange }: { initialResult: AnalysisResult | null; dateRange: DateRange }) {
   const [result, setResult] = useState(initialResult);
   const [question, setQuestion] = useState("分析菜单表现，并指出最值得优先验证的三个问题。");
   const [loading, setLoading] = useState(false);
@@ -29,7 +30,7 @@ export function AnalysisWorkspace({ initialResult }: { initialResult: AnalysisRe
       const response = await fetch("/api/analysis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({ question, ...dateRange }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "分析失败");
@@ -48,6 +49,7 @@ export function AnalysisWorkspace({ initialResult }: { initialResult: AnalysisRe
         <h2>告诉 AI 这次要判断什么</h2>
         <textarea value={question} onChange={(event) => setQuestion(event.target.value)} rows={7} />
         <button className="button button-primary" onClick={analyze} disabled={loading || !question.trim()}>{loading ? "正在分析…" : "生成分析"}</button>
+        <p>分析范围：{dateRange.startDate} 至 {dateRange.endDate}</p>
         <p>未配置 AI_API_KEY 时自动使用本地规则分析，数据不会离开本机。</p>
         {error && <p className="form-error">{error}</p>}
       </aside>

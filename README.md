@@ -49,7 +49,7 @@ npm start
 
 `POST /api/import`
 
-如果服务端设置了 `IMPORT_INGEST_KEY`，请求必须携带 `x-tkf-import-key` 请求头。建议腾讯云环境始终设置该密钥。
+如果服务端设置了 `IMPORT_INGEST_KEY`，请求必须携带 `x-tkf-import-key` 请求头。部署到任何公网环境时都应设置该密钥。
 
 ```json
 {
@@ -96,28 +96,30 @@ npm start
 }
 ```
 
-### 本机自动同步到腾讯云
+### 本机自动同步到 Cloudflare D1
 
-`scripts/sync-ga4-to-tencent.mjs` 会先调用本机 `/api/sync/ga4`（由本机 OAuth 凭证访问 Google），再把返回的真实数据发送到腾讯云 `/api/import`。
+`scripts/sync-ga4-to-cloudflare.mjs` 会先调用本机 `/api/sync/ga4`（由本机 OAuth 凭证访问 Google），再把菜单、站点和全局点击汇总发送到 Worker `/v1/analytics/import`。
 
 在本机 `.env.local` 或系统环境变量中配置：
 
 ```text
-TKF_IMPORT_URL=https://你的腾讯云域名/api/import
-TKF_IMPORT_KEY=与腾讯云 IMPORT_INGEST_KEY 相同的密钥
+TKF_ANALYTICS_IMPORT_URL=https://你的Worker地址/v1/analytics/import
+TKF_ANALYTICS_IMPORT_KEY=与 Worker SERVER_INGEST_KEY 相同的密钥
 LOCAL_SYNC_URL=http://localhost:3000/api/sync/ga4
 ```
 
 运行最近 3 天：
 
 ```bash
-npm run sync:ga4-to-tencent
+npm run sync:ga4-to-cloudflare
 ```
+
+面板顶部提供 7 天、30 天、90 天和自定义起止日期。时间范围通过 URL 在各页面间保留，并由 Worker/D1 实际过滤概览、菜单、全局点击、用户行为和 AI 数据集。
 
 也可以指定日期：
 
 ```bash
-node scripts/sync-ga4-to-tencent.mjs --start-date 2026-09-01 --end-date 2026-09-03
+node scripts/sync-ga4-to-cloudflare.mjs --start-date 2026-09-01 --end-date 2026-09-03
 ```
 
 ### Clarity 同步
@@ -169,14 +171,14 @@ node scripts/sync-ga4-to-tencent.mjs --start-date 2026-09-01 --end-date 2026-09-
 
 ### Cloudflare Worker + D1
 
-线上用户事件以 Cloudflare D1 为唯一数据源，Worker 地址不包含结尾斜杠：
+线上报表和用户事件以 Cloudflare D1 为唯一数据源，Worker 地址不包含结尾斜杠：
 
 ```text
 USER_EVENT_API_URL=https://你的Worker地址/v1
 USER_EVENT_READ_KEY=Cloudflare Worker 的只读密钥
 ```
 
-未配置 `USER_EVENT_API_URL` 时，本机继续读取 `data/analytics.db`，方便离线开发。
+未配置 `USER_EVENT_API_URL` 时，本机继续读取 `data/analytics.db`，方便离线开发。Vercel 配置后，概览、菜单、全局点击、AI 数据集和用户行为都会读取 D1。
 
 ### Vercel HTTPS 接入层
 

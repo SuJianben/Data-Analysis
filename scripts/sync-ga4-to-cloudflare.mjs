@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 const projectRoot = process.cwd();
@@ -42,14 +42,9 @@ function defaultPeriod() {
   return { startDate: formatDate(start), endDate: formatDate(end) };
 }
 
-function requestTimeout(ms) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), ms);
-  return { controller, timer };
-}
-
 async function fetchJson(url, init = {}, timeoutMs = 60_000) {
-  const { controller, timer } = requestTimeout(timeoutMs);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(url, { ...init, signal: controller.signal });
     const text = await response.text();
@@ -59,7 +54,7 @@ async function fetchJson(url, init = {}, timeoutMs = 60_000) {
     } catch {
       throw new Error(`接口返回的不是 JSON（HTTP ${response.status}）`);
     }
-    if (!response.ok) {
+    if (!response.ok || payload?.ok === false) {
       throw new Error(payload?.error || `请求失败（HTTP ${response.status}）`);
     }
     return payload;
@@ -73,10 +68,12 @@ async function fetchJson(url, init = {}, timeoutMs = 60_000) {
   }
 }
 
-function requireEnv(name) {
-  const value = process.env[name]?.trim();
-  if (!value) throw new Error(`缺少环境变量 ${name}`);
-  return value;
+function requireEnv(...names) {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
+  }
+  throw new Error(`缺少环境变量 ${names.join(" 或 ")}`);
 }
 
 function validateDate(value, optionName) {
@@ -96,8 +93,8 @@ async function main() {
   if (period.startDate > period.endDate) throw new Error("开始日期不能晚于结束日期");
 
   const localSyncUrl = process.env.LOCAL_SYNC_URL?.trim() || "http://localhost:3000/api/sync/ga4";
-  const importUrl = requireEnv("TKF_IMPORT_URL");
-  const importKey = requireEnv("TKF_IMPORT_KEY");
+  const importUrl = requireEnv("TKF_ANALYTICS_IMPORT_URL", "TKF_IMPORT_URL");
+  const importKey = requireEnv("TKF_ANALYTICS_IMPORT_KEY", "TKF_IMPORT_KEY");
   const propertyId = process.env.GA4_PROPERTY_ID?.trim() || "546810508";
 
   console.log(`[GA4] 同步日期：${period.startDate} 至 ${period.endDate}`);
@@ -109,14 +106,11 @@ async function main() {
     body: JSON.stringify({ propertyId, startDate: period.startDate, endDate: period.endDate }),
   });
 
-  if (!localResult.ok) throw new Error(localResult.error || "本机 GA4 同步失败");
-
   const payload = {
     source: "ga4",
     period: { start: period.startDate, end: period.endDate },
     menuMetrics: localResult.menuMetrics || [],
     siteMetrics: localResult.siteMetrics || [],
-    heatmapMetrics: localResult.heatmapMetrics || [],
     globalClickMetrics: localResult.globalClickMetrics || [],
     metadata: {
       syncMethod: "codex-local-automation",
@@ -125,22 +119,20 @@ async function main() {
     },
   };
 
-  const rowCount = payload.menuMetrics.length + payload.siteMetrics.length + payload.heatmapMetrics.length + payload.globalClickMetrics.length;
-  console.log(`[GA4] 本机同步完成：${rowCount} 行，开始上传腾讯云`);
+  const rowCount = payload.menuMetrics.length + payload.siteMetrics.length + payload.globalClickMetrics.length;
+  console.log(`[GA4] 本机同步完成：${rowCount} 行，开始上传 Cloudflare D1`);
 
   const importResult = await fetchJson(importUrl, {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-tkf-import-key": importKey,
+      "x-tkf-ingest-key": importKey,
     },
     body: JSON.stringify(payload),
   });
 
-  console.log(`[腾讯云] 导入完成：${importResult.rowCount ?? rowCount} 行，syncId=${importResult.syncId ?? "-"}`);
-  if (payload.metadata.warnings.length) {
-    console.log(`[提示] ${payload.metadata.warnings.join("；")}`);
-  }
+  console.log(`[Cloudflare] 导入完成：${importResult.rowCount ?? rowCount} 行，syncId=${importResult.syncId ?? "-"}`);
+  if (payload.metadata.warnings.length) console.log(`[提示] ${payload.metadata.warnings.join("；")}`);
 }
 
 main().catch((error) => {

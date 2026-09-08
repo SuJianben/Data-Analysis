@@ -102,6 +102,36 @@ a { color: inherit; text-decoration: none; }
   z-index: 10;
 }
 .eyebrow { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .16em; }
+.date-range-filter { display: flex; align-items: end; gap: 8px; position: relative; }
+.date-range-filter label { display: grid; gap: 3px; }
+.date-range-filter label > span, .date-range-loading { color: var(--muted); font-size: 9px; letter-spacing: .04em; }
+.date-range-filter input {
+  width: 128px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: rgba(255,255,255,.58);
+  color: var(--ink);
+  font-size: 11px;
+  outline: none;
+}
+.date-range-filter input:focus { border-color: var(--blue); background: white; }
+.date-range-filter > i { padding-bottom: 8px; color: var(--muted); font: 10px/1 monospace; }
+.date-presets { display: flex; align-items: center; gap: 2px; margin-right: 4px; padding-bottom: 1px; }
+.date-presets button, .date-apply {
+  height: 32px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 10px;
+}
+.date-presets button:hover { background: white; color: var(--ink); }
+.date-apply { border-color: var(--ink); background: var(--ink); color: white; font-weight: 650; }
+.date-range-error { position: absolute; right: 0; top: calc(100% + 5px); color: var(--red); font-size: 9px; }
 .button {
   appearance: none;
   border: 0;
@@ -172,12 +202,31 @@ a { color: inherit; text-decoration: none; }
 .section-heading { min-height: 50px; display: flex; justify-content: space-between; align-items: start; gap: 20px; margin-bottom: 22px; }
 .section-heading h2 { margin: 7px 0 0; font-size: 20px; letter-spacing: -.025em; }
 .section-heading > a { color: var(--blue); font-size: 12px; padding-top: 4px; }
-.chart-wrap { width: 100%; }
+.chart-wrap { width: 100%; position: relative; }
 .trend-chart { width: 100%; height: auto; overflow: visible; }
 .chart-grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 6; }
 .chart-line { fill: none; stroke: var(--blue); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-.chart-point circle { fill: var(--surface); stroke: var(--blue); stroke-width: 2; transition: r .15s ease, fill .15s ease; }
-.chart-point:hover circle { r: 7; fill: var(--blue); }
+.chart-guide { stroke: var(--blue); stroke-width: 1; stroke-dasharray: 4 4; opacity: .45; pointer-events: none; }
+.chart-point { outline: none; cursor: crosshair; }
+.chart-point-dot { fill: var(--surface); stroke: var(--blue); stroke-width: 1.7; transition: r .15s ease, fill .15s ease; pointer-events: none; }
+.chart-point-hit { fill: transparent; stroke: none; }
+.chart-point.is-active .chart-point-dot { r: 6; fill: var(--blue); stroke: white; stroke-width: 2; }
+.chart-tooltip {
+  position: absolute;
+  z-index: 3;
+  display: grid;
+  gap: 4px;
+  min-width: 138px;
+  padding: 10px 12px;
+  border-radius: 5px;
+  background: var(--ink);
+  color: white;
+  box-shadow: 0 8px 24px rgba(23,24,22,.18);
+  transform: translate(-50%, calc(-100% - 12px));
+  pointer-events: none;
+}
+.chart-tooltip span { color: #bfc3ba; font-size: 10px; }
+.chart-tooltip strong { font-size: 13px; font-variant-numeric: tabular-nums; }
 .chart-axis { display: flex; justify-content: space-between; padding: 2px 2.5% 0; color: var(--muted); font: 10px/1 monospace; }
 .chart-empty { min-height: 260px; display: grid; place-items: center; color: var(--muted); border: 1px dashed var(--line); }
 .rank-list { display: grid; }
@@ -331,6 +380,7 @@ a { color: inherit; text-decoration: none; }
   .overview-grid { grid-template-columns: 1fr; }
   .ranking-section { padding-left: 0; border-left: 0; }
   .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .date-presets { display: none; }
 }
 
 @media (max-width: 720px) {
@@ -341,7 +391,11 @@ a { color: inherit; text-decoration: none; }
   .nav-link { min-height: 46px; }
   .nav-link > span:last-child { display: inline; font-size: 10px; }
   .nav-short { width: 22px; height: 22px; }
-  .topbar { height: 58px; padding: 0 18px; }
+  .topbar { height: 68px; padding: 0 18px; }
+  .topbar > div:first-child { display: none; }
+  .date-range-filter { width: 100%; justify-content: flex-end; }
+  .date-range-filter input { width: min(31vw, 128px); }
+  .date-range-filter label > span, .date-range-filter > i { display: none; }
   .topbar .button { min-height: 32px; padding: 0 10px; }
   .page { padding: 30px 18px 100px; }
   .page-heading { align-items: start; flex-direction: column; margin-bottom: 30px; }

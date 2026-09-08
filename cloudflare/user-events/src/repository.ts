@@ -1,4 +1,5 @@
 import type { Env, UserEventInput, UserSummaryRow } from "./types";
+import { nextDate, type DateRangeOptions } from "./date-range";
 
 const RESOLVED_EVENTS_CTE = `
   WITH visitor_accounts AS (
@@ -31,6 +32,14 @@ const RESOLVED_EVENTS_CTE = `
   )
 `;
 
+function eventDateFilter(options: DateRangeOptions, extra: string[] = []) {
+  const conditions = [...extra];
+  const values: string[] = [];
+  if (options.startDate) { conditions.push("occurred_at >= ?"); values.push(`${options.startDate}T00:00:00.000Z`); }
+  if (options.endDate) { conditions.push("occurred_at < ?"); values.push(`${nextDate(options.endDate)}T00:00:00.000Z`); }
+  return { clause: conditions.length ? `WHERE ${conditions.join(" AND ")}` : "", values };
+}
+
 export async function saveEvents(env: Env, source: string, events: UserEventInput[]) {
   const receivedAt = new Date().toISOString();
   const statements = events.map((event) => env.DB.prepare(`
@@ -62,7 +71,8 @@ export async function saveEvents(env: Env, source: string, events: UserEventInpu
   return results.reduce((sum, result) => sum + Number(result.meta.changes || 0), 0);
 }
 
-export async function getUserSummaries(env: Env, limit: number) {
+export async function getUserSummaries(env: Env, limit: number, options: DateRangeOptions = {}) {
+  const filter = eventDateFilter(options);
   const result = await env.DB.prepare(`${RESOLVED_EVENTS_CTE}
     SELECT
       identity_key AS identityKey,
@@ -76,10 +86,11 @@ export async function getUserSummaries(env: Env, limit: number) {
       COUNT(DISTINCT visitor_id) AS visitorCount,
       SUM(CASE WHEN event_name = 'purchase' THEN 1 ELSE 0 END) AS purchaseCount
     FROM resolved_user_events
+    ${filter.clause}
     GROUP BY identity_key, identity_type, identity_id
     ORDER BY lastSeenAt DESC
     LIMIT ?
-  `).bind(limit).all<UserSummaryRow>();
+  `).bind(...filter.values, limit).all<UserSummaryRow>();
   return result.results;
 }
 
@@ -101,7 +112,8 @@ type StoredUserEvent = {
   receivedAt: string;
 };
 
-export async function getUserEvents(env: Env, identityKey: string, limit: number) {
+export async function getUserEvents(env: Env, identityKey: string, limit: number, options: DateRangeOptions = {}) {
+  const filter = eventDateFilter(options, ["identity_key = ?"]);
   const result = await env.DB.prepare(`${RESOLVED_EVENTS_CTE}
     SELECT
       event_id AS eventId,
@@ -120,10 +132,10 @@ export async function getUserEvents(env: Env, identityKey: string, limit: number
       metadata_json AS metadataJson,
       received_at AS receivedAt
     FROM resolved_user_events
-    WHERE identity_key = ?
+    ${filter.clause}
     ORDER BY occurred_at DESC
     LIMIT ?
-  `).bind(identityKey, limit).all<StoredUserEvent>();
+  `).bind(identityKey, ...filter.values, limit).all<StoredUserEvent>();
   return result.results.map((row) => {
     const { metadataJson, ...event } = row;
     let metadata: Record<string, unknown> = {};

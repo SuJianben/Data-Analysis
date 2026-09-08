@@ -3,6 +3,7 @@ import { saveUserEvents } from "@/services/database/user-event-repository";
 import type {
   AnalysisResult,
   DashboardSummary,
+  DateRangeOptions,
   DataImportPayload,
   MenuMetricInput,
   MenuReportRow,
@@ -19,6 +20,14 @@ type CountRow = { value: number };
 type NullableValueRow = { value: number | null };
 
 const isoNow = () => new Date().toISOString();
+
+function dateFilter(options: DateRangeOptions, extra: string[] = []) {
+  const conditions = [...extra];
+  const values: string[] = [];
+  if (options.startDate) { conditions.push("event_date >= ?"); values.push(options.startDate); }
+  if (options.endDate) { conditions.push("event_date <= ?"); values.push(options.endDate); }
+  return { clause: conditions.length ? `WHERE ${conditions.join(" AND ")}` : "", values };
+}
 
 export function startSync(source: string) {
   const result = db
@@ -171,14 +180,18 @@ export function importDataset(payload: DataImportPayload) {
   }
 }
 
-export function getDashboardSummary(): DashboardSummary {
-  const clicks = db.prepare("SELECT COALESCE(SUM(click_count), 0) AS value FROM menu_click_metrics").get() as CountRow;
-  const menus = db.prepare("SELECT COUNT(DISTINCT menu_name) AS value FROM menu_click_metrics WHERE menu_name <> ''").get() as CountRow;
-  const users = db.prepare("SELECT COALESCE(SUM(total_users), 0) AS value FROM site_metrics WHERE event_name = 'page_view'").get() as CountRow;
-  const purchases = db.prepare("SELECT COALESCE(SUM(event_count), 0) AS value FROM site_metrics WHERE event_name = 'purchase'").get() as CountRow;
-  const revenue = db.prepare("SELECT COALESCE(SUM(total_revenue), 0) AS value FROM site_metrics WHERE event_name = 'purchase'").get() as CountRow;
+export function getDashboardSummary(options: DateRangeOptions = {}): DashboardSummary {
+  const menuFilter = dateFilter(options);
+  const namedMenuFilter = dateFilter(options, ["menu_name <> ''"]);
+  const pageViewFilter = dateFilter(options, ["event_name = 'page_view'"]);
+  const purchaseFilter = dateFilter(options, ["event_name = 'purchase'"]);
+  const clicks = db.prepare(`SELECT COALESCE(SUM(click_count), 0) AS value FROM menu_click_metrics ${menuFilter.clause}`).get(...menuFilter.values) as CountRow;
+  const menus = db.prepare(`SELECT COUNT(DISTINCT menu_name) AS value FROM menu_click_metrics ${namedMenuFilter.clause}`).get(...namedMenuFilter.values) as CountRow;
+  const users = db.prepare(`SELECT COALESCE(SUM(total_users), 0) AS value FROM site_metrics ${pageViewFilter.clause}`).get(...pageViewFilter.values) as CountRow;
+  const purchases = db.prepare(`SELECT COALESCE(SUM(event_count), 0) AS value FROM site_metrics ${purchaseFilter.clause}`).get(...purchaseFilter.values) as CountRow;
+  const revenue = db.prepare(`SELECT COALESCE(SUM(total_revenue), 0) AS value FROM site_metrics ${purchaseFilter.clause}`).get(...purchaseFilter.values) as CountRow;
   const latest = db.prepare("SELECT MAX(finished_at) AS value FROM sync_runs WHERE status = 'success'").get() as { value: string | null };
-  const dates = db.prepare("SELECT DISTINCT event_date AS value FROM menu_click_metrics ORDER BY event_date DESC LIMIT 2").all() as { value: string }[];
+  const dates = db.prepare(`SELECT DISTINCT event_date AS value FROM menu_click_metrics ${menuFilter.clause} ORDER BY event_date DESC LIMIT 2`).all(...menuFilter.values) as { value: string }[];
   let clickChange: number | null = null;
   if (dates.length === 2) {
     const current = db.prepare("SELECT COALESCE(SUM(click_count), 0) AS value FROM menu_click_metrics WHERE event_date = ?").get(dates[0].value) as CountRow;
@@ -196,17 +209,19 @@ export function getDashboardSummary(): DashboardSummary {
   };
 }
 
-export function getClickTrend(): TrendPoint[] {
+export function getClickTrend(options: DateRangeOptions = {}): TrendPoint[] {
+  const filter = dateFilter(options);
   return db.prepare(`
-    SELECT event_date AS date, SUM(click_count) AS clicks
-    FROM menu_click_metrics
-    GROUP BY event_date
-    ORDER BY event_date ASC
-    LIMIT 30
-  `).all() as TrendPoint[];
+    SELECT date, clicks FROM (
+      SELECT event_date AS date, SUM(click_count) AS clicks
+      FROM menu_click_metrics ${filter.clause}
+      GROUP BY event_date ORDER BY event_date DESC
+    ) ORDER BY date ASC
+  `).all(...filter.values) as TrendPoint[];
 }
 
-export function getMenuReportRows(): MenuReportRow[] {
+export function getMenuReportRows(options: DateRangeOptions = {}): MenuReportRow[] {
+  const filter = dateFilter(options);
   return db.prepare(`
     SELECT
       menu_name AS menuName,
@@ -218,13 +233,14 @@ export function getMenuReportRows(): MenuReportRow[] {
       click_target AS clickTarget,
       device_category AS deviceCategory,
       SUM(click_count) AS clickCount
-    FROM menu_click_metrics
+    FROM menu_click_metrics ${filter.clause}
     GROUP BY menu_name, menu_key, parent_menu_name, menu_level, menu_action, navigation_location, click_target, device_category
     ORDER BY clickCount DESC, menuName ASC
-  `).all() as MenuReportRow[];
+  `).all(...filter.values) as MenuReportRow[];
 }
 
-export function getSiteMetricReportRows(): SiteMetricInput[] {
+export function getSiteMetricReportRows(options: DateRangeOptions = {}): SiteMetricInput[] {
+  const filter = dateFilter(options);
   return db.prepare(`
     SELECT
       event_date AS date,
@@ -233,10 +249,10 @@ export function getSiteMetricReportRows(): SiteMetricInput[] {
       SUM(event_count) AS eventCount,
       SUM(total_users) AS totalUsers,
       SUM(total_revenue) AS totalRevenue
-    FROM site_metrics
+    FROM site_metrics ${filter.clause}
     GROUP BY event_date, device_category, event_name
     ORDER BY event_date ASC, event_name ASC
-  `).all() as SiteMetricInput[];
+  `).all(...filter.values) as SiteMetricInput[];
 }
 
 export function getHeatmapReportRows(options: { pagePath?: string; startDate?: string; endDate?: string } = {}): HeatmapReportRow[] {
@@ -298,7 +314,8 @@ export function getLatestSnapshot(source: string): unknown | null {
   return row ? JSON.parse(row.value) : null;
 }
 
-export function getTopMenus(limit = 6): MenuReportRow[] {
+export function getTopMenus(limit = 6, options: DateRangeOptions = {}): MenuReportRow[] {
+  const filter = dateFilter(options, ["menu_name <> ''"]);
   return db.prepare(`
     SELECT
       menu_name AS menuName,
@@ -311,11 +328,11 @@ export function getTopMenus(limit = 6): MenuReportRow[] {
       'all' AS deviceCategory,
       SUM(click_count) AS clickCount
     FROM menu_click_metrics
-    WHERE menu_name <> ''
+    ${filter.clause}
     GROUP BY menu_name, menu_key, parent_menu_name, menu_level, menu_action, navigation_location, click_target
     ORDER BY clickCount DESC
     LIMIT ?
-  `).all(limit) as MenuReportRow[];
+  `).all(...filter.values, limit) as MenuReportRow[];
 }
 
 export function getRecentSyncRuns(limit = 6): SyncRun[] {
