@@ -8,6 +8,7 @@ import {
 } from "./analytics-repository";
 import { parseAnalyticsImportPayload } from "./analytics-validation";
 import { parseDateRange } from "./date-range";
+import { getDataHealthReport } from "./health-repository";
 import type { Env } from "./types";
 
 const MAX_BODY_BYTES = 1_500_000;
@@ -45,6 +46,9 @@ export async function handleAnalyticsRequest(request: Request, env: Env, path: s
   const denied = requireReadAccess(request, env);
   if (denied) return denied;
   const url = new URL(request.url);
+  if (path === "/v1/analytics/health") {
+    return json(request, env, { ok: true, report: await getDataHealthReport(env) });
+  }
   let range;
   try {
     range = parseDateRange(url);

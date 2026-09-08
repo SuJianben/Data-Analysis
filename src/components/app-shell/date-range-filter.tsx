@@ -27,6 +27,10 @@ export function DateRangeFilter() {
     setEndDate(current.endDate);
   }, [current.endDate, current.startDate]);
 
+  if (pathname === "/health") {
+    return <span className="health-window-note">固定检查最近7个完整自然日</span>;
+  }
+
   function navigate(nextStart: string, nextEnd: string) {
     if (!nextStart || !nextEnd || nextStart > nextEnd) {
       setError("开始日期不能晚于结束日期");

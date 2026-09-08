@@ -13,8 +13,9 @@
 - `GET /v1/analytics/menus`：读取菜单点击明细。
 - `GET /v1/analytics/global-clicks`：读取全局点击明细。
 - `GET /v1/analytics/dataset`：读取 AI 分析使用的数据集。
+- `GET /v1/analytics/health`：检查最近同步、7天数据连续性、关键字段质量和数据量波动。
 
-所有读取接口都支持 `startDate=YYYY-MM-DD&endDate=YYYY-MM-DD`。日期筛选在 D1 查询层执行，概览、表格、用户行为和 AI 使用同一统计范围。
+报表和用户行为读取接口支持 `startDate=YYYY-MM-DD&endDate=YYYY-MM-DD`。日期筛选在 D1 查询层执行，概览、表格、用户行为和 AI 使用同一统计范围。健康检查固定使用最近7个完整自然日，避免当天尚未完整的数据触发误报。
 
 ## 本机开发
 

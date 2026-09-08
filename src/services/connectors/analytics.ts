@@ -16,6 +16,7 @@ import {
 } from "@/services/database/repositories";
 import type {
   AnalysisResult,
+  DataHealthReport,
   DashboardSummary,
   DateRangeOptions,
   GlobalClickReportRow,
@@ -117,4 +118,12 @@ export async function loadAnalysisDataset(options: DateRangeOptions = {}): Promi
 
 export async function loadLatestAnalysis(): Promise<AnalysisResult | null> {
   return appConfig.userEventApiUrl ? null : getLatestAnalysis();
+}
+
+export async function loadDataHealthReport(): Promise<DataHealthReport> {
+  if (!appConfig.userEventApiUrl) {
+    throw new Error("数据健康监控需要先连接 Cloudflare 数据源。");
+  }
+  const payload = await remoteRequest<ApiEnvelope & { report: DataHealthReport }>("/analytics/health");
+  return payload.report;
 }
