@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { appConfig } from "@/config/env";
 import { importDataset } from "@/services/database/repositories";
 
 export const runtime = "nodejs";
@@ -80,6 +81,9 @@ const importSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    if (appConfig.importIngestKey && request.headers.get("x-tkf-import-key") !== appConfig.importIngestKey) {
+      return NextResponse.json({ ok: false, error: "导入接口鉴权失败" }, { status: 401 });
+    }
     const payload = importSchema.parse(await request.json());
     const result = importDataset(payload);
     return NextResponse.json({ ok: true, ...result });

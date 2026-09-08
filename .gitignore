@@ -7,6 +7,7 @@ data/*.db-shm
 data/*.db-wal
 secrets/*.json
 npm-debug.log*
+logs/local-sync-server.*.log
 *.zip
 .deploy-staging/
 tsconfig.tsbuildinfo

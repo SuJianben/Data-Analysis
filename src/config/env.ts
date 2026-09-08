@@ -7,6 +7,7 @@ export const appConfig = {
   googleApplicationCredentials: process.env.GOOGLE_APPLICATION_CREDENTIALS || "",
   clarityApiToken: process.env.CLARITY_API_TOKEN || "",
   userEventIngestKey: process.env.USER_EVENT_INGEST_KEY || "",
+  importIngestKey: process.env.IMPORT_INGEST_KEY || "",
   aiBaseUrl: (process.env.AI_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, ""),
   aiApiKey: process.env.AI_API_KEY || "",
   aiModel: process.env.AI_MODEL || "gpt-5-mini",

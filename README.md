@@ -28,6 +28,7 @@ npm start
 - `GOOGLE_APPLICATION_CREDENTIALS`：GA4 服务账号 JSON 的本机路径，作为备用认证方式
 - `CLARITY_API_TOKEN`：可选；不填写时可在数据源页面临时输入
 - `USER_EVENT_INGEST_KEY`：可选；设置后，用户事件接口要求请求头 `x-tkf-ingest-key` 匹配
+- `IMPORT_INGEST_KEY`：可选；设置后，标准化导入接口要求请求头 `x-tkf-import-key` 匹配
 - `AI_BASE_URL`：兼容 OpenAI Chat Completions 的接口根地址
 - `AI_API_KEY`：AI 接口密钥
 - `AI_MODEL`：AI 模型名称
@@ -43,6 +44,8 @@ npm start
 ### 标准化数据导入
 
 `POST /api/import`
+
+如果服务端设置了 `IMPORT_INGEST_KEY`，请求必须携带 `x-tkf-import-key` 请求头。建议腾讯云环境始终设置该密钥。
 
 ```json
 {
@@ -87,6 +90,30 @@ npm start
   "startDate": "2026-09-01",
   "endDate": "2026-09-02"
 }
+```
+
+### 本机自动同步到腾讯云
+
+`scripts/sync-ga4-to-tencent.mjs` 会先调用本机 `/api/sync/ga4`（由本机 OAuth 凭证访问 Google），再把返回的真实数据发送到腾讯云 `/api/import`。
+
+在本机 `.env.local` 或系统环境变量中配置：
+
+```text
+TKF_IMPORT_URL=https://你的腾讯云域名/api/import
+TKF_IMPORT_KEY=与腾讯云 IMPORT_INGEST_KEY 相同的密钥
+LOCAL_SYNC_URL=http://localhost:3000/api/sync/ga4
+```
+
+运行最近 3 天：
+
+```bash
+npm run sync:ga4-to-tencent
+```
+
+也可以指定日期：
+
+```bash
+node scripts/sync-ga4-to-tencent.mjs --start-date 2026-09-01 --end-date 2026-09-03
 ```
 
 ### Clarity 同步
