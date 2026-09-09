@@ -1,8 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { GlobalClickReportRow } from "@/types/analytics";
 import { formatNumber } from "@/utils/format";
+import { Pagination } from "@/components/data-table/pagination";
+
+const PAGE_SIZE = 20;
 
 const elementTypeLabels: Record<string, string> = {
   link: "链接",
@@ -63,6 +66,7 @@ function displayLabel(row: GlobalClickReportRow) {
 export function GlobalClickTable({ rows }: { rows: GlobalClickReportRow[] }) {
   const [query, setQuery] = useState("");
   const [device, setDevice] = useState("all");
+  const [page, setPage] = useState(1);
   const filtered = useMemo(() => rows.filter((row) => {
     const haystack = [
       row.pagePath,
@@ -75,7 +79,14 @@ export function GlobalClickTable({ rows }: { rows: GlobalClickReportRow[] }) {
     ].join(" ").toLowerCase();
     return haystack.includes(query.toLowerCase()) && (device === "all" || row.deviceCategory === device);
   }), [device, query, rows]);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const pageRows = useMemo(() => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE), [currentPage, filtered]);
   const total = filtered.reduce((sum, row) => sum + row.clickCount, 0);
+
+  useEffect(() => {
+    setPage(1);
+  }, [device, query, rows]);
 
   return (
     <>
@@ -97,7 +108,7 @@ export function GlobalClickTable({ rows }: { rows: GlobalClickReportRow[] }) {
         <table className="data-table">
           <thead><tr><th>元素</th><th>所在页面</th><th>名称/标签</th><th>跳转到</th><th>区域</th><th>设备</th><th className="number-cell">点击次数</th></tr></thead>
           <tbody>
-            {filtered.map((row, index) => (
+            {pageRows.map((row, index) => (
               <tr key={row.date + row.pagePath + row.elementKey + row.destinationPath + index}>
                 <td title={`原始标识：${row.elementKey}`}><strong>{friendlyElementName(row)}</strong><small>{friendlyElementType(row)}</small></td>
                 <td className="target-cell" title={row.pagePath}>{row.pagePath}</td>
@@ -112,6 +123,7 @@ export function GlobalClickTable({ rows }: { rows: GlobalClickReportRow[] }) {
         </table>
         {!filtered.length && <div className="table-empty">暂无全局点击数据。同步 GA4 后会显示真实结果。</div>}
       </div>
+      <Pagination page={currentPage} totalItems={filtered.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
     </>
   );
 }
