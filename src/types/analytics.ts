@@ -192,6 +192,15 @@ export type DeviceStatPoint = {
   value: number;
 };
 
+export type DistributionPoint = {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  category: "visitor" | "customer" | "default";
+  details: string[];
+};
+
 export type MenuReportRow = {
   menuName: string;
   menuKey: string;

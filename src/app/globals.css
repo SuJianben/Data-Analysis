@@ -305,6 +305,8 @@ a { color: inherit; text-decoration: none; }
 .scatter-axis-line { stroke: var(--line-strong); stroke-width: 1; }
 .scatter-point { cursor: crosshair; }
 .scatter-dot { fill: #4aafc1; stroke: white; stroke-width: 1.5; filter: drop-shadow(0 2px 4px rgba(74,175,193,.32)); transition: r .15s ease, fill .15s ease; }
+.scatter-dot-default { fill: #4aafc1; }
+.scatter-dot-visitor { fill: #4aafc1; }
 .scatter-dot-customer { fill: var(--blue); filter: drop-shadow(0 2px 4px rgba(49,94,251,.28)); }
 .scatter-axis-label { fill: var(--muted); font: 10px/1 monospace; }
 .scatter-axis-copy { display: flex; justify-content: space-between; gap: 16px; padding: 0 2.5%; color: var(--muted); font-size: 10px; }

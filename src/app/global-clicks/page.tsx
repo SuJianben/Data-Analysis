@@ -3,6 +3,8 @@ import { PageTrendDashboard } from "@/components/data-chart/page-trend-dashboard
 import { loadGlobalClickReport, loadGlobalClickTrend } from "@/services/connectors/analytics";
 import { resolveDateRange, type DateRangeParams } from "@/features/date-range/date-range";
 import { aggregateDeviceStats } from "@/utils/device-stats";
+import { DistributionScatterPanel } from "@/components/data-chart/distribution-scatter";
+import { buildElementDistributionPoints } from "@/utils/distribution-points";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +15,7 @@ export default async function GlobalClicksPage({ searchParams }: { searchParams:
   const pages = new Set(rows.map((row) => row.pagePath.trim()).filter(Boolean));
   const totalClicks = trend.reduce((sum, point) => sum + Number(point.clicks || 0), 0);
   const devices = aggregateDeviceStats(rows, (row) => row.deviceCategory, (row) => row.clickCount);
+  const scatterPoints = buildElementDistributionPoints(rows);
   return (
     <div className="page page-enter">
       <header className="page-heading compact-heading">
@@ -36,6 +39,7 @@ export default async function GlobalClicksPage({ searchParams }: { searchParams:
       <section className="workspace-section table-section">
         <GlobalClickTable rows={rows} />
       </section>
+      <DistributionScatterPanel title="点击元素分布散点" description="按元素点击次数与页面覆盖范围查看全局埋点分布。" xLabel="元素点击次数" yLabel="页面覆盖数" points={scatterPoints} />
     </div>
   );
 }
