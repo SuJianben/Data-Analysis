@@ -310,6 +310,11 @@ a { color: inherit; text-decoration: none; }
 .scatter-dot-default { fill: #4aafc1; }
 .scatter-dot-visitor { fill: #4aafc1; }
 .scatter-dot-customer { fill: var(--blue); filter: drop-shadow(0 2px 4px rgba(49,94,251,.28)); }
+.scatter-dot-high-high { background: #43a889 !important; }
+.scatter-dot-low-high { background: #3eaec4 !important; }
+.scatter-dot-high-low { background: #d98a2c !important; }
+.scatter-dot-low-low { background: #aeb8c6 !important; }
+.scatter-legend-top { justify-content: flex-end; margin: 0 0 6px; }
 .scatter-axis-label { fill: var(--muted); font: 10px/1 monospace; }
 .scatter-axis-copy { display: flex; justify-content: space-between; gap: 16px; padding: 0 2.5%; color: var(--muted); font-size: 10px; }
 .scatter-tooltip { position: absolute; z-index: 3; display: grid; gap: 4px; min-width: 170px; padding: 10px 12px; border-radius: 5px; background: var(--ink); color: white; box-shadow: 0 8px 24px rgba(23,24,22,.18); transform: translate(-50%, calc(-100% - 12px)); pointer-events: none; }
