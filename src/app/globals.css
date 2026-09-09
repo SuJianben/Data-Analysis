@@ -201,6 +201,9 @@ a { color: inherit; text-decoration: none; }
 .dashboard-chart-wide { grid-column: 1 / -1; }
 .chart-note { color: var(--muted); font-size: 10px; padding-top: 4px; }
 .dashboard-chart { width: 100%; height: auto; overflow: visible; }
+.traffic-line { fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.traffic-point { cursor: crosshair; }
+.traffic-point-hit { fill: transparent; stroke: none; }
 .chart-legend { display: flex; justify-content: center; flex-wrap: wrap; gap: 15px; margin-top: 9px; color: var(--muted); font-size: 10px; }
 .chart-legend span { display: inline-flex; align-items: center; gap: 5px; }
 .chart-legend i, .donut-legend i { width: 7px; height: 7px; display: inline-block; border-radius: 50%; }
@@ -265,6 +268,8 @@ a { color: inherit; text-decoration: none; }
 .traffic-axis { display: grid; padding-left: 3.4%; padding-right: 3.4%; }
 .traffic-axis span { min-width: 0; overflow: hidden; text-align: center; white-space: nowrap; }
 .traffic-axis span.is-hidden { visibility: hidden; }
+.traffic-period-axis { grid-template-rows: auto; }
+.traffic-period-axis span { min-width: 0; overflow: hidden; text-align: center; white-space: nowrap; }
 .chart-empty { min-height: 260px; display: grid; place-items: center; color: var(--muted); border: 1px dashed var(--line); }
 .rank-list { display: grid; }
 .rank-row { display: grid; grid-template-columns: 28px 1fr auto; gap: 12px; align-items: start; padding: 12px 0; border-bottom: 1px solid var(--line); }

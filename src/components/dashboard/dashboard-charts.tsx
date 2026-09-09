@@ -1,5 +1,5 @@
 import type { ConversionFunnelPoint, DeviceBreakdownPoint, PageEntryPoint, TrafficTrendPoint } from "@/types/analytics";
-import type { DateRange } from "@/features/date-range/date-range";
+import { datesInRange, type DateRange } from "@/features/date-range/date-range";
 import { TrafficBarChart } from "@/components/dashboard/charts/traffic-bar-chart";
 import { DeviceDonutChart } from "@/components/dashboard/charts/device-donut-chart";
 import { ConversionFunnelChart } from "@/components/dashboard/charts/conversion-funnel-chart";
@@ -18,10 +18,11 @@ export function DashboardCharts({
   topPages: PageEntryPoint[];
   dateRange: DateRange;
 }) {
+  const shortRange = datesInRange(dateRange).length <= 7;
   return (
     <section className="dashboard-charts" aria-label="站点数据图表">
       <section className="dashboard-chart-panel">
-        <div className="section-heading"><div><span className="eyebrow">TRAFFIC OVERVIEW</span><h2>期间流量</h2></div><span className="chart-note">页面浏览 / 访问用户 / 会话</span></div>
+        <div className="section-heading"><div><span className="eyebrow">TRAFFIC OVERVIEW</span><h2>期间流量</h2></div><span className="chart-note">{shortRange ? "按日柱状" : "按时间段折线"}</span></div>
         <TrafficBarChart data={trafficTrend} dateRange={dateRange} />
       </section>
       <section className="dashboard-chart-panel">
