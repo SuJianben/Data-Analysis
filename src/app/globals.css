@@ -296,6 +296,23 @@ a { color: inherit; text-decoration: none; }
 .traffic-period-axis { grid-template-rows: auto; }
 .traffic-period-axis span { min-width: 0; overflow: hidden; text-align: center; white-space: nowrap; }
 .chart-empty { min-height: 260px; display: grid; place-items: center; color: var(--muted); border: 1px dashed var(--line); }
+.user-distribution-panel { margin-top: 42px; padding: 26px 0 30px; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--line); }
+.user-distribution-panel .section-heading { margin-bottom: 10px; }
+.user-distribution-panel .section-heading h2 { margin: 7px 0 6px; font-size: 20px; }
+.user-distribution-panel .section-heading p { margin: 0; color: var(--muted); font-size: 12px; }
+.scatter-wrap { width: 100%; position: relative; }
+.scatter-chart { width: 100%; height: auto; overflow: visible; }
+.scatter-axis-line { stroke: var(--line-strong); stroke-width: 1; }
+.scatter-point { cursor: crosshair; }
+.scatter-dot { fill: #4aafc1; stroke: white; stroke-width: 1.5; filter: drop-shadow(0 2px 4px rgba(74,175,193,.32)); transition: r .15s ease, fill .15s ease; }
+.scatter-dot-customer { fill: var(--blue); filter: drop-shadow(0 2px 4px rgba(49,94,251,.28)); }
+.scatter-axis-label { fill: var(--muted); font: 10px/1 monospace; }
+.scatter-axis-copy { display: flex; justify-content: space-between; gap: 16px; padding: 0 2.5%; color: var(--muted); font-size: 10px; }
+.scatter-tooltip { position: absolute; z-index: 3; display: grid; gap: 4px; min-width: 170px; padding: 10px 12px; border-radius: 5px; background: var(--ink); color: white; box-shadow: 0 8px 24px rgba(23,24,22,.18); transform: translate(-50%, calc(-100% - 12px)); pointer-events: none; }
+.scatter-tooltip strong { font-size: 12px; }
+.scatter-tooltip span { color: #bfc3ba; font-size: 10px; }
+.scatter-legend-dot { width: 7px; height: 7px; display: inline-block; border-radius: 50%; background: #4aafc1; }
+.scatter-legend-dot-customer { background: var(--blue); }
 .rank-list { display: grid; }
 .rank-row { display: grid; grid-template-columns: 28px 1fr auto; gap: 12px; align-items: start; padding: 12px 0; border-bottom: 1px solid var(--line); }
 .rank-row > span { color: var(--muted); font: 10px/1.6 monospace; }
@@ -523,6 +540,7 @@ a { color: inherit; text-decoration: none; }
   .detail-metric:first-child { border-top: 0; }
   .detail-chart-grid { grid-template-columns: 1fr; gap: 0; }
   .detail-chart-panel + .detail-chart-panel { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); }
+  .scatter-axis-copy { display: grid; gap: 4px; }
   .donut-chart-wrap { grid-template-columns: 1fr; }
   .donut-visual { justify-items: start; }
   .ranking-section { padding-left: 0; border-left: 0; }

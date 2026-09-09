@@ -1,5 +1,6 @@
 import { UserTable } from "@/components/users/user-table";
 import { PageTrendDashboard } from "@/components/data-chart/page-trend-dashboard";
+import { UserDistributionScatter } from "@/components/users/user-distribution-scatter";
 import { loadUserDeviceBreakdown, loadUserSummaries, loadUserTrend } from "@/services/connectors/user-events";
 import { dateRangeQuery, resolveDateRange, type DateRangeParams } from "@/features/date-range/date-range";
 
@@ -30,6 +31,10 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
       <section className="workspace-section table-section">
         <div className="table-tools"><div><span className="eyebrow">USER JOURNEYS</span><h2 className="inline-section-title">用户活动摘要</h2></div><span className="table-total">共 {rows.length} 位用户</span></div>
         <UserTable rows={rows} rangeQuery={rangeQuery} />
+      </section>
+      <section className="user-distribution-panel" aria-label="用户分布散点">
+        <div className="section-heading"><div><span className="eyebrow">USER DISTRIBUTION</span><h2>用户分布散点</h2><p>按用户事件活跃度与访问页面覆盖范围查看用户分布。</p></div><span className="chart-note">每个点代表一位用户</span></div>
+        <UserDistributionScatter rows={rows} />
       </section>
     </div>
   );
