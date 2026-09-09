@@ -46,3 +46,8 @@ export type UserTrendPoint = {
   visitors: number;
   purchases: number;
 };
+
+export type DeviceStatPoint = {
+  deviceCategory: string;
+  value: number;
+};

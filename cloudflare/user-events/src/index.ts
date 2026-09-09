@@ -1,6 +1,6 @@
 import { corsHeaders, hasReadAccess, hasServerIngestAccess, isBrowserOriginAllowed, json } from "./http";
 import { handleAnalyticsRequest } from "./analytics-routes";
-import { getUserEvents, getUserSummaries, getUserTrend, saveEvents } from "./repository";
+import { getUserDeviceBreakdown, getUserEvents, getUserSummaries, getUserTrend, saveEvents } from "./repository";
 import type { Env } from "./types";
 import { parseIdentityKey, parseUserEventPayload } from "./validation";
 import { parseDateRange } from "./date-range";
@@ -48,6 +48,15 @@ async function userTrend(request: Request, env: Env) {
   }
 }
 
+async function userDeviceBreakdown(request: Request, env: Env) {
+  if (!hasReadAccess(request, env)) return json(request, env, { ok: false, error: "读取凭证无效。" }, 401);
+  try {
+    return json(request, env, { ok: true, devices: await getUserDeviceBreakdown(env, parseDateRange(new URL(request.url))) });
+  } catch (error) {
+    return json(request, env, { ok: false, error: error instanceof Error ? error.message : "时间范围不正确。" }, 400);
+  }
+}
+
 async function userDetail(request: Request, env: Env, rawIdentityKey: string) {
   if (!hasReadAccess(request, env)) return json(request, env, { ok: false, error: "读取凭证无效。" }, 401);
   const identity = parseIdentityKey(rawIdentityKey);
@@ -73,6 +82,7 @@ export default {
     if (analyticsResponse) return analyticsResponse;
     if (request.method === "POST" && url.pathname === "/v1/events") return ingest(request, env);
     if (request.method === "GET" && url.pathname === "/v1/users/trend") return userTrend(request, env);
+    if (request.method === "GET" && url.pathname === "/v1/users/device-breakdown") return userDeviceBreakdown(request, env);
     if (request.method === "GET" && url.pathname === "/v1/users") return listUsers(request, env);
     if (request.method === "GET" && url.pathname.startsWith("/v1/users/")) {
       return userDetail(request, env, url.pathname.slice("/v1/users/".length));

@@ -187,6 +187,11 @@ export type UserTrendPoint = {
   purchases: number;
 };
 
+export type DeviceStatPoint = {
+  deviceCategory: string;
+  value: number;
+};
+
 export type MenuReportRow = {
   menuName: string;
   menuKey: string;

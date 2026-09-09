@@ -5,12 +5,14 @@ import {
   getUserEvents as getLocalUserEvents,
   getUserSummaries as getLocalUserSummaries,
   getUserTrend as getLocalUserTrend,
+  getUserDeviceBreakdown as getLocalUserDeviceBreakdown,
 } from "@/services/database/user-event-repository";
-import type { DateRangeOptions, UserEventRow, UserSummaryRow, UserTrendPoint } from "@/types/analytics";
+import type { DateRangeOptions, DeviceStatPoint, UserEventRow, UserSummaryRow, UserTrendPoint } from "@/types/analytics";
 
 type UserSummaryResponse = { ok: boolean; rows?: UserSummaryRow[]; error?: string };
 type UserDetailResponse = { ok: boolean; events?: UserEventRow[]; error?: string };
 type UserTrendResponse = { ok: boolean; trend?: UserTrendPoint[]; error?: string };
+type UserDeviceResponse = { ok: boolean; devices?: DeviceStatPoint[]; error?: string };
 
 async function remoteRequest<T extends { ok: boolean; error?: string }>(path: string): Promise<T> {
   if (!appConfig.userEventApiUrl || !appConfig.userEventReadKey) {
@@ -57,4 +59,12 @@ export async function loadUserTrend(options: DateRangeOptions = {}): Promise<Use
   const suffix = query.size ? `?${query.toString()}` : "";
   const payload = await remoteRequest<UserTrendResponse>(`/users/trend${suffix}`);
   return payload.trend || [];
+}
+
+export async function loadUserDeviceBreakdown(options: DateRangeOptions = {}): Promise<DeviceStatPoint[]> {
+  if (!appConfig.userEventApiUrl) return getLocalUserDeviceBreakdown(options);
+  const query = rangeQuery(options);
+  const suffix = query.size ? `?${query.toString()}` : "";
+  const payload = await remoteRequest<UserDeviceResponse>(`/users/device-breakdown${suffix}`);
+  return payload.devices || [];
 }

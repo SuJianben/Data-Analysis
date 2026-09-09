@@ -1,17 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import type { DeviceBreakdownPoint } from "@/types/analytics";
 import { formatNumber } from "@/utils/format";
 
 const labels: Record<string, string> = { desktop: "桌面端", mobile: "手机端", tablet: "平板端", "smart tv": "智能电视", unknown: "未识别设备" };
 const colors = ["#315efb", "#7184c7", "#9ca4b8", "#c7cbd6"];
 
-export function DeviceDonutChart({ data }: { data: DeviceBreakdownPoint[] }) {
+type DeviceDonutPoint = {
+  deviceCategory: string;
+  value?: number;
+  users?: number;
+  pageViews?: number;
+};
+
+function pointValue(item: DeviceDonutPoint) {
+  if (item.value !== undefined) return Number(item.value || 0);
+  return Number(item.users || 0) || Number(item.pageViews || 0);
+}
+
+export function DeviceDonutChart({ data, centerLabel = "访问用户" }: { data: DeviceDonutPoint[]; centerLabel?: string }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const totalUsers = data.reduce((sum, item) => sum + Number(item.users || 0), 0);
-  const totalViews = data.reduce((sum, item) => sum + Number(item.pageViews || 0), 0);
-  const total = totalUsers || totalViews;
+  const total = data.reduce((sum, item) => sum + pointValue(item), 0);
   const circumference = 2 * Math.PI * 52;
   let offset = 0;
 
@@ -23,7 +32,7 @@ export function DeviceDonutChart({ data }: { data: DeviceBreakdownPoint[] }) {
         <svg className="donut-chart" viewBox="0 0 140 140" role="img" aria-label="设备构成环形图">
           <circle cx="70" cy="70" r="52" fill="none" stroke="var(--line)" strokeWidth="18" />
           {data.map((item, index) => {
-            const value = Number(item.users || 0) || Number(item.pageViews || 0);
+            const value = pointValue(item);
             const length = (value / total) * circumference;
             const dashOffset = -offset;
             offset += length;
@@ -48,12 +57,12 @@ export function DeviceDonutChart({ data }: { data: DeviceBreakdownPoint[] }) {
             );
           })}
           <text x="70" y="66" textAnchor="middle" className="donut-total">{formatNumber(total)}</text>
-          <text x="70" y="80" textAnchor="middle" className="donut-caption">访问用户</text>
+          <text x="70" y="80" textAnchor="middle" className="donut-caption">{centerLabel}</text>
         </svg>
       </div>
       <div className="donut-legend">
         {data.map((item, index) => {
-          const value = Number(item.users || 0) || Number(item.pageViews || 0);
+          const value = pointValue(item);
           return <div key={item.deviceCategory} className={activeIndex === index ? "is-active" : ""} onMouseEnter={() => setActiveIndex(index)} onMouseLeave={() => setActiveIndex(null)}><i style={{ background: colors[index % colors.length] }} /><span>{labels[item.deviceCategory] || item.deviceCategory}</span><strong>{formatNumber(value)}</strong></div>;
         })}
       </div>

@@ -1,5 +1,5 @@
 import { db } from "@/services/database/db";
-import type { DateRangeOptions, UserEventInput, UserEventRow, UserSummaryRow, UserTrendPoint } from "@/types/analytics";
+import type { DateRangeOptions, DeviceStatPoint, UserEventInput, UserEventRow, UserSummaryRow, UserTrendPoint } from "@/types/analytics";
 
 const isoNow = () => new Date().toISOString();
 
@@ -120,6 +120,17 @@ export function getUserTrend(options: DateRangeOptions = {}): UserTrendPoint[] {
     GROUP BY SUBSTR(occurred_at, 1, 10)
     ORDER BY date ASC
   `).all(...filter.values) as UserTrendPoint[];
+}
+
+export function getUserDeviceBreakdown(options: DateRangeOptions = {}): DeviceStatPoint[] {
+  const filter = eventDateFilter(options);
+  return db.prepare(`${RESOLVED_USER_EVENTS_CTE}
+    SELECT device_category AS deviceCategory, COUNT(*) AS value
+    FROM resolved_user_events
+    ${filter.clause}
+    GROUP BY device_category
+    ORDER BY value DESC, deviceCategory ASC
+  `).all(...filter.values) as DeviceStatPoint[];
 }
 
 export function getUserEvents(identityKey: string, limit = 500, options: DateRangeOptions = {}): UserEventRow[] {

@@ -1,4 +1,4 @@
-import type { Env, UserEventInput, UserSummaryRow, UserTrendPoint } from "./types";
+import type { DeviceStatPoint, Env, UserEventInput, UserSummaryRow, UserTrendPoint } from "./types";
 import { nextDate, type DateRangeOptions } from "./date-range";
 
 const RESOLVED_EVENTS_CTE = `
@@ -107,6 +107,18 @@ export async function getUserTrend(env: Env, options: DateRangeOptions = {}) {
     GROUP BY SUBSTR(occurred_at, 1, 10)
     ORDER BY date ASC
   `).bind(...filter.values).all<UserTrendPoint>();
+  return result.results;
+}
+
+export async function getUserDeviceBreakdown(env: Env, options: DateRangeOptions = {}) {
+  const filter = eventDateFilter(options);
+  const result = await env.DB.prepare(`${RESOLVED_EVENTS_CTE}
+    SELECT device_category AS deviceCategory, COUNT(*) AS value
+    FROM resolved_user_events
+    ${filter.clause}
+    GROUP BY device_category
+    ORDER BY value DESC, deviceCategory ASC
+  `).bind(...filter.values).all<DeviceStatPoint>();
   return result.results;
 }
 
