@@ -262,6 +262,9 @@ a { color: inherit; text-decoration: none; }
 .chart-tooltip span { color: #bfc3ba; font-size: 10px; }
 .chart-tooltip strong { font-size: 13px; font-variant-numeric: tabular-nums; }
 .chart-axis { display: flex; justify-content: space-between; padding: 2px 2.5% 0; color: var(--muted); font: 10px/1 monospace; }
+.traffic-axis { display: grid; padding-left: 3.4%; padding-right: 3.4%; }
+.traffic-axis span { min-width: 0; overflow: hidden; text-align: center; white-space: nowrap; }
+.traffic-axis span.is-hidden { visibility: hidden; }
 .chart-empty { min-height: 260px; display: grid; place-items: center; color: var(--muted); border: 1px dashed var(--line); }
 .rank-list { display: grid; }
 .rank-row { display: grid; grid-template-columns: 28px 1fr auto; gap: 12px; align-items: start; padding: 12px 0; border-bottom: 1px solid var(--line); }

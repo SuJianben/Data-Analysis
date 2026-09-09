@@ -34,7 +34,11 @@ export function TrafficBarChart({ data, dateRange }: { data: TrafficTrendPoint[]
   const barWidth = Math.max(Math.min(groupWidth / Math.max(visibleSeries.length + 1, 2), 12), 2);
   const max = Math.max(...points.flatMap((point) => visibleSeries.map(({ key }) => point[key])), 1);
   const activePoint = activeIndex === null ? null : points[activeIndex];
-  const axisPoints = points.length > 2 ? [points[0], points[Math.floor((points.length - 1) / 2)], points.at(-1)] : points;
+  const axisStep = points.length <= 14 ? 1 : points.length <= 31 ? 5 : 15;
+  const axisLabels = points.map((point, index) => ({
+    ...point,
+    visible: index === 0 || index === points.length - 1 || index % axisStep === 0,
+  }));
 
   if (!data.length || !visibleSeries.length) return <div className="chart-empty">当前范围暂无流量数据。</div>;
 
@@ -64,7 +68,9 @@ export function TrafficBarChart({ data, dateRange }: { data: TrafficTrendPoint[]
           {visibleSeries.map(({ key, label }) => <strong key={key}>{label} {formatNumber(activePoint[key])}</strong>)}
         </div>
       )}
-      <div className="chart-axis">{axisPoints.map((point) => <span key={point?.date}>{point ? formatDate(point.date) : ""}</span>)}</div>
+      <div className="chart-axis traffic-axis" style={{ gridTemplateColumns: `repeat(${Math.max(points.length, 1)}, minmax(0, 1fr))` }}>
+        {axisLabels.map((point) => <span className={point.visible ? "" : "is-hidden"} key={point.date}>{formatDate(point.date)}</span>)}
+      </div>
       <div className="chart-legend">{visibleSeries.map(({ label, color }) => <span key={label}><i style={{ background: color }} />{label}</span>)}</div>
     </div>
   );
