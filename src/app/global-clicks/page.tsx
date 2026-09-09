@@ -26,7 +26,10 @@ export default async function GlobalClicksPage({ searchParams }: { searchParams:
         dateRange={range}
         metrics={[{ label: "期间点击", value: totalClicks, note: "全局点击总量" }, { label: "点击元素", value: elements.size, note: "当前范围有记录" }, { label: "涉及页面", value: pages.size, note: "当前范围有记录" }]}
         data={trend.map(({ date, clicks, elements: elementCount, pages: pageCount }) => ({ date, values: { clicks: Number(clicks), elements: Number(elementCount), pages: Number(pageCount) } }))}
-        series={[{ key: "clicks", label: "全局点击", color: "#315efb" }, { key: "elements", label: "点击元素", color: "#7184c7" }, { key: "pages", label: "涉及页面", color: "#9ca4b8" }]}
+        primaryTitle="全局点击趋势"
+        secondaryTitle="元素与页面趋势"
+        primarySeries={[{ key: "clicks", label: "全局点击", color: "#315efb" }]}
+        secondarySeries={[{ key: "elements", label: "点击元素", color: "#7184c7" }, { key: "pages", label: "涉及页面", color: "#9ca4b8" }]}
       />
       <section className="workspace-section table-section">
         <GlobalClickTable rows={rows} />

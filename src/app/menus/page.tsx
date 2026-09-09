@@ -19,7 +19,10 @@ export default async function MenusPage({ searchParams }: { searchParams: Promis
         dateRange={range}
         metrics={[{ label: "期间点击", value: totalClicks, note: "菜单点击总量" }, { label: "识别菜单", value: menuNames.size, note: "当前范围有记录" }, { label: "有数据天数", value: trend.filter((point) => Number(point.clicks) > 0).length, note: "至少 1 次点击" }]}
         data={trend.map(({ date, clicks, menus }) => ({ date, values: { clicks: Number(clicks), menus: Number(menus) } }))}
-        series={[{ key: "clicks", label: "菜单点击", color: "#315efb" }, { key: "menus", label: "活跃菜单", color: "#7184c7" }]}
+        primaryTitle="菜单点击趋势"
+        secondaryTitle="活跃菜单趋势"
+        primarySeries={[{ key: "clicks", label: "菜单点击", color: "#315efb" }]}
+        secondarySeries={[{ key: "menus", label: "活跃菜单", color: "#7184c7" }]}
       />
       <section className="workspace-section table-section">
         <MenuTable rows={rows} />

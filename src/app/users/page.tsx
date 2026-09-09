@@ -22,7 +22,10 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
         dateRange={range}
         metrics={[{ label: "期间事件", value: totalEvents, note: "用户行为总量" }, { label: "识别用户", value: rows.length, note: "当前范围用户列表" }, { label: "购买事件", value: totalPurchases, note: "purchase 事件" }]}
         data={trend.map(({ date, events, visitors, purchases }) => ({ date, values: { events: Number(events), visitors: Number(visitors), purchases: Number(purchases) } }))}
-        series={[{ key: "events", label: "用户事件", color: "#315efb" }, { key: "visitors", label: "活跃用户", color: "#7184c7" }, { key: "purchases", label: "购买事件", color: "#2f8766" }]}
+        primaryTitle="用户事件趋势"
+        secondaryTitle="活跃用户与购买趋势"
+        primarySeries={[{ key: "events", label: "用户事件", color: "#315efb" }]}
+        secondarySeries={[{ key: "visitors", label: "活跃用户", color: "#7184c7" }, { key: "purchases", label: "购买事件", color: "#2f8766" }]}
       />
       <section className="workspace-section table-section">
         <div className="table-tools"><div><span className="eyebrow">USER JOURNEYS</span><h2 className="inline-section-title">用户活动摘要</h2></div><span className="table-total">共 {rows.length} 位用户</span></div>
