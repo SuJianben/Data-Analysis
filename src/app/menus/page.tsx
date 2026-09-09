@@ -32,7 +32,7 @@ export default async function MenusPage({ searchParams }: { searchParams: Promis
       <section className="workspace-section table-section">
         <MenuTable rows={rows} />
       </section>
-      <DistributionScatterPanel title="菜单分布散点" description="按菜单点击次数与设备覆盖范围查看菜单分布。" xLabel="菜单点击次数" yLabel="设备覆盖数" points={scatterPoints} />
+      <DistributionScatterPanel title="菜单分布散点" description="按菜单点击次数与设备覆盖范围查看菜单分布。" xLabel="菜单点击次数" yLabel="设备覆盖数" quadrantLabels={{ "high-high": "高点击·高覆盖", "low-high": "低点击·高覆盖", "high-low": "高点击·低覆盖", "low-low": "低点击·低覆盖" }} points={scatterPoints} />
     </div>
   );
 }

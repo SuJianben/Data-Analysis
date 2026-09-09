@@ -39,7 +39,7 @@ export default async function GlobalClicksPage({ searchParams }: { searchParams:
       <section className="workspace-section table-section">
         <GlobalClickTable rows={rows} />
       </section>
-      <DistributionScatterPanel title="点击元素分布散点" description="按元素点击次数与页面覆盖范围查看全局埋点分布。" xLabel="元素点击次数" yLabel="页面覆盖数" points={scatterPoints} />
+      <DistributionScatterPanel title="点击元素分布散点" description="按元素点击次数与页面覆盖范围查看全局埋点分布。" xLabel="元素点击次数" yLabel="页面覆盖数" quadrantLabels={{ "high-high": "高点击·高覆盖", "low-high": "低点击·高覆盖", "high-low": "高点击·低覆盖", "low-low": "低点击·低覆盖" }} points={scatterPoints} />
     </div>
   );
 }
