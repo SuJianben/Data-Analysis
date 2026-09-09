@@ -141,6 +141,32 @@ export type TrendPoint = {
   clicks: number;
 };
 
+export type TrafficTrendPoint = {
+  date: string;
+  pageViews: number;
+  users: number;
+  sessions: number;
+};
+
+export type ConversionFunnelPoint = {
+  key: "page_view" | "add_to_cart" | "begin_checkout" | "purchase";
+  label: string;
+  count: number;
+};
+
+export type DeviceBreakdownPoint = {
+  deviceCategory: string;
+  pageViews: number;
+  users: number;
+  purchases: number;
+  revenue: number;
+};
+
+export type PageEntryPoint = {
+  pagePath: string;
+  clicks: number;
+};
+
 export type MenuReportRow = {
   menuName: string;
   menuKey: string;

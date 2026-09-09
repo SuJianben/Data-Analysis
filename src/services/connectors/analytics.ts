@@ -4,6 +4,10 @@ import { appConfig } from "@/config/env";
 import type { AnalysisDataset } from "@/features/analysis/local-analyzer";
 import {
   getClickTrend,
+  getDashboardDeviceBreakdown,
+  getDashboardFunnel,
+  getDashboardTopPages,
+  getDashboardTrafficTrend,
   getDashboardSummary,
   getGlobalClickPagePaths,
   getGlobalClickReportRows,
@@ -19,15 +23,23 @@ import type {
   DataHealthReport,
   DashboardSummary,
   DateRangeOptions,
+  DeviceBreakdownPoint,
+  ConversionFunnelPoint,
   GlobalClickReportRow,
   MenuReportRow,
+  PageEntryPoint,
   SyncRun,
+  TrafficTrendPoint,
   TrendPoint,
 } from "@/types/analytics";
 
 export type DashboardOverview = {
   summary: DashboardSummary;
   trend: TrendPoint[];
+  trafficTrend: TrafficTrendPoint[];
+  funnel: ConversionFunnelPoint[];
+  deviceBreakdown: DeviceBreakdownPoint[];
+  topPages: PageEntryPoint[];
   topMenus: MenuReportRow[];
   recentSyncRuns: SyncRun[];
 };
@@ -68,6 +80,10 @@ export async function loadDashboardOverview(options: DateRangeOptions = {}): Pro
     return {
       summary: getDashboardSummary(options),
       trend: getClickTrend(options),
+      trafficTrend: getDashboardTrafficTrend(options),
+      funnel: getDashboardFunnel(options),
+      deviceBreakdown: getDashboardDeviceBreakdown(options),
+      topPages: getDashboardTopPages(options),
       topMenus: getTopMenus(6, options),
       recentSyncRuns: getRecentSyncRuns(),
     };
@@ -76,6 +92,10 @@ export async function loadDashboardOverview(options: DateRangeOptions = {}): Pro
   return {
     summary: payload.summary,
     trend: payload.trend,
+    trafficTrend: payload.trafficTrend || [],
+    funnel: payload.funnel || [],
+    deviceBreakdown: payload.deviceBreakdown || [],
+    topPages: payload.topPages || [],
     topMenus: payload.topMenus,
     recentSyncRuns: payload.recentSyncRuns,
   };

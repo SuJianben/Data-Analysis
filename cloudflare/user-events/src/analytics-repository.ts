@@ -1,4 +1,4 @@
-import type { AnalyticsImportPayload, DashboardSummary } from "./analytics-types";
+import type { AnalyticsImportPayload, ConversionFunnelPoint, DashboardSummary, DeviceBreakdownPoint } from "./analytics-types";
 import type { DateRangeOptions } from "./date-range";
 import type { Env } from "./types";
 
@@ -92,7 +92,8 @@ export async function getAnalyticsOverview(env: Env, options: DateRangeOptions =
   if (options.startDate) { syncConditions.push("period_end >= ?"); syncValues.push(options.startDate); }
   if (options.endDate) { syncConditions.push("period_start <= ?"); syncValues.push(options.endDate); }
   const syncClause = `WHERE ${syncConditions.join(" AND ")}`;
-  const [clicks, menus, users, purchases, revenue, latest, daily, topMenus, recentRuns] = await env.DB.batch([
+  const globalFilter = dateFilter("event_date", options, ["page_path <> ''"]);
+  const [clicks, menus, users, purchases, revenue, latest, daily, topMenus, recentRuns, traffic, funnel, devices, topPages] = await env.DB.batch([
     env.DB.prepare(`SELECT COALESCE(SUM(click_count), 0) AS value FROM menu_click_metrics ${menuFilter.clause}`).bind(...menuFilter.values),
     env.DB.prepare(`SELECT COUNT(DISTINCT menu_name) AS value FROM menu_click_metrics ${namedMenuFilter.clause}`).bind(...namedMenuFilter.values),
     env.DB.prepare(`SELECT COALESCE(SUM(total_users), 0) AS value FROM site_metrics ${pageViewFilter.clause}`).bind(...pageViewFilter.values),
@@ -118,6 +119,34 @@ export async function getAnalyticsOverview(env: Env, options: DateRangeOptions =
         row_count AS rowCount, message
       FROM analytics_sync_runs ${syncClause} ORDER BY imported_at DESC LIMIT 6
     `).bind(...syncValues),
+    env.DB.prepare(`
+      SELECT event_date AS date,
+        SUM(CASE WHEN event_name = 'page_view' THEN event_count ELSE 0 END) AS pageViews,
+        SUM(CASE WHEN event_name = 'page_view' THEN total_users ELSE 0 END) AS users,
+        SUM(CASE WHEN event_name = 'session_start' THEN event_count ELSE 0 END) AS sessions
+      FROM site_metrics ${siteFilter.clause}
+      GROUP BY event_date ORDER BY event_date ASC
+    `).bind(...siteFilter.values),
+    env.DB.prepare(`
+      SELECT event_name AS key, SUM(event_count) AS count
+      FROM site_metrics ${siteFilter.clause ? `${siteFilter.clause} AND` : "WHERE"}
+        event_name IN ('page_view', 'add_to_cart', 'begin_checkout', 'purchase')
+      GROUP BY event_name
+    `).bind(...siteFilter.values),
+    env.DB.prepare(`
+      SELECT device_category AS deviceCategory,
+        SUM(CASE WHEN event_name = 'page_view' THEN event_count ELSE 0 END) AS pageViews,
+        SUM(CASE WHEN event_name = 'page_view' THEN total_users ELSE 0 END) AS users,
+        SUM(CASE WHEN event_name = 'purchase' THEN event_count ELSE 0 END) AS purchases,
+        SUM(CASE WHEN event_name = 'purchase' THEN total_revenue ELSE 0 END) AS revenue
+      FROM site_metrics ${siteFilter.clause}
+      GROUP BY device_category ORDER BY users DESC, pageViews DESC
+    `).bind(...siteFilter.values),
+    env.DB.prepare(`
+      SELECT page_path AS pagePath, SUM(click_count) AS clicks
+      FROM global_click_metrics ${globalFilter.clause}
+      GROUP BY page_path ORDER BY clicks DESC, pagePath ASC LIMIT 6
+    `).bind(...globalFilter.values),
   ]);
 
   const trend = daily.results as Array<{ date: string; clicks: number }>;
@@ -133,7 +162,28 @@ export async function getAnalyticsOverview(env: Env, options: DateRangeOptions =
     clickChange: previous ? ((current - previous) / previous) * 100 : null,
     latestSync: String(firstValue(latest as QueryResult<ValueRow>) || "") || null,
   };
-  return { summary, trend, topMenus: topMenus.results, recentSyncRuns: recentRuns.results };
+  const funnelLabels: Record<ConversionFunnelPoint["key"], string> = {
+    page_view: "页面浏览",
+    add_to_cart: "加入购物车",
+    begin_checkout: "开始结账",
+    purchase: "完成购买",
+  };
+  const funnelRows = funnel.results as Array<{ key: ConversionFunnelPoint["key"]; count: number }>;
+  const funnelData = (["page_view", "add_to_cart", "begin_checkout", "purchase"] as const).map((key) => ({
+    key,
+    label: funnelLabels[key],
+    count: Number(funnelRows.find((row) => row.key === key)?.count || 0),
+  }));
+  return {
+    summary,
+    trend,
+    trafficTrend: traffic.results,
+    funnel: funnelData,
+    deviceBreakdown: devices.results as DeviceBreakdownPoint[],
+    topPages: topPages.results,
+    topMenus: topMenus.results,
+    recentSyncRuns: recentRuns.results,
+  };
 }
 
 export async function getMenuReportRows(env: Env, options: DateRangeOptions = {}) {

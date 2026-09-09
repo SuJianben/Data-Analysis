@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { DemoLoader } from "@/components/dashboard/demo-loader";
+import { DashboardCharts } from "@/components/dashboard/dashboard-charts";
 import { MetricStrip } from "@/components/dashboard/metric-strip";
 import { SyncList } from "@/components/dashboard/sync-list";
 import { TrendChart } from "@/components/dashboard/trend-chart";
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function OverviewPage({ searchParams }: { searchParams: Promise<DateRangeParams> }) {
   const range = resolveDateRange(await searchParams);
   const rangeQuery = dateRangeQuery(range);
-  const { summary, trend, topMenus, recentSyncRuns: runs } = await loadDashboardOverview(range);
+  const { summary, trend, trafficTrend, funnel, deviceBreakdown, topPages, topMenus, recentSyncRuns: runs } = await loadDashboardOverview(range);
   const hasData = summary.clicks > 0;
   const topMax = Math.max(...topMenus.map((menu) => menu.clickCount), 1);
   return (
@@ -24,6 +25,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
       {!hasData ? <DemoLoader /> : (
         <>
           <MetricStrip summary={summary} />
+          <DashboardCharts trafficTrend={trafficTrend} funnel={funnel} deviceBreakdown={deviceBreakdown} topPages={topPages} dateRange={range} />
           <div className="overview-grid">
             <section className="workspace-section chart-section">
               <div className="section-heading"><div><span className="eyebrow">SELECTED PERIOD</span><h2>菜单点击趋势</h2></div><Link href={`/menus?${rangeQuery}`}>查看菜单明细 →</Link></div>

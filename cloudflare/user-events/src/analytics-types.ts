@@ -50,3 +50,17 @@ export type DashboardSummary = {
   clickChange: number | null;
   latestSync: string | null;
 };
+
+export type ConversionFunnelPoint = {
+  key: "page_view" | "add_to_cart" | "begin_checkout" | "purchase";
+  label: string;
+  count: number;
+};
+
+export type DeviceBreakdownPoint = {
+  deviceCategory: string;
+  pageViews: number;
+  users: number;
+  purchases: number;
+  revenue: number;
+};

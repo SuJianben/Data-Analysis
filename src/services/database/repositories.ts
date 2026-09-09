@@ -2,17 +2,21 @@ import { db } from "@/services/database/db";
 import { saveUserEvents } from "@/services/database/user-event-repository";
 import type {
   AnalysisResult,
+  ConversionFunnelPoint,
+  DeviceBreakdownPoint,
   DashboardSummary,
   DateRangeOptions,
   DataImportPayload,
   MenuMetricInput,
   MenuReportRow,
+  PageEntryPoint,
   HeatmapMetricInput,
   HeatmapReportRow,
   GlobalClickMetricInput,
   GlobalClickReportRow,
   SiteMetricInput,
   SyncRun,
+  TrafficTrendPoint,
   TrendPoint,
 } from "@/types/analytics";
 
@@ -218,6 +222,66 @@ export function getClickTrend(options: DateRangeOptions = {}): TrendPoint[] {
       GROUP BY event_date ORDER BY event_date DESC
     ) ORDER BY date ASC
   `).all(...filter.values) as TrendPoint[];
+}
+
+export function getDashboardTrafficTrend(options: DateRangeOptions = {}): TrafficTrendPoint[] {
+  const filter = dateFilter(options);
+  return db.prepare(`
+    SELECT
+      event_date AS date,
+      SUM(CASE WHEN event_name = 'page_view' THEN event_count ELSE 0 END) AS pageViews,
+      SUM(CASE WHEN event_name = 'page_view' THEN total_users ELSE 0 END) AS users,
+      SUM(CASE WHEN event_name = 'session_start' THEN event_count ELSE 0 END) AS sessions
+    FROM site_metrics ${filter.clause}
+    GROUP BY event_date
+    ORDER BY event_date ASC
+  `).all(...filter.values) as TrafficTrendPoint[];
+}
+
+export function getDashboardFunnel(options: DateRangeOptions = {}): ConversionFunnelPoint[] {
+  const filter = dateFilter(options, ["event_name IN ('page_view', 'add_to_cart', 'begin_checkout', 'purchase')"]);
+  const labels: Record<ConversionFunnelPoint["key"], string> = {
+    page_view: "页面浏览",
+    add_to_cart: "加入购物车",
+    begin_checkout: "开始结账",
+    purchase: "完成购买",
+  };
+  const rows = db.prepare(`
+    SELECT event_name AS key, SUM(event_count) AS count
+    FROM site_metrics ${filter.clause}
+    GROUP BY event_name
+  `).all(...filter.values) as Array<{ key: ConversionFunnelPoint["key"]; count: number }>;
+  return (["page_view", "add_to_cart", "begin_checkout", "purchase"] as const).map((key) => ({
+    key,
+    label: labels[key],
+    count: Number(rows.find((row) => row.key === key)?.count || 0),
+  }));
+}
+
+export function getDashboardDeviceBreakdown(options: DateRangeOptions = {}): DeviceBreakdownPoint[] {
+  const filter = dateFilter(options);
+  return db.prepare(`
+    SELECT
+      device_category AS deviceCategory,
+      SUM(CASE WHEN event_name = 'page_view' THEN event_count ELSE 0 END) AS pageViews,
+      SUM(CASE WHEN event_name = 'page_view' THEN total_users ELSE 0 END) AS users,
+      SUM(CASE WHEN event_name = 'purchase' THEN event_count ELSE 0 END) AS purchases,
+      SUM(CASE WHEN event_name = 'purchase' THEN total_revenue ELSE 0 END) AS revenue
+    FROM site_metrics ${filter.clause}
+    GROUP BY device_category
+    ORDER BY users DESC, pageViews DESC
+  `).all(...filter.values) as DeviceBreakdownPoint[];
+}
+
+export function getDashboardTopPages(options: DateRangeOptions = {}): PageEntryPoint[] {
+  const filter = dateFilter(options, ["page_path <> ''"]);
+  return db.prepare(`
+    SELECT page_path AS pagePath, SUM(click_count) AS clicks
+    FROM global_click_metrics ${filter.clause}
+    GROUP BY page_path
+    ORDER BY clicks DESC, pagePath ASC
+    LIMIT 6
+  `).all(...filter.values) as PageEntryPoint[];
 }
 
 export function getMenuReportRows(options: DateRangeOptions = {}): MenuReportRow[] {
