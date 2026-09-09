@@ -13,6 +13,10 @@ export function DistributionScatter({ points, xLabel, yLabel, ariaLabel }: { poi
   const plotHeight = height - padding.top - padding.bottom;
   const maxX = Math.max(...points.map((point) => point.x), 1);
   const maxY = Math.max(...points.map((point) => point.y), 1);
+  const averageX = points.reduce((sum, point) => sum + point.x, 0) / points.length;
+  const averageY = points.reduce((sum, point) => sum + point.y, 0) / points.length;
+  const averageXPosition = padding.left + (averageX / maxX) * plotWidth;
+  const averageYPosition = height - padding.bottom - (averageY / maxY) * plotHeight;
   const mapped = points.map((point, index) => ({ ...point, index, xPosition: padding.left + (point.x / maxX) * plotWidth, yPosition: height - padding.bottom - (point.y / maxY) * plotHeight }));
   const activePoint = activeIndex === null ? null : mapped[activeIndex];
 
@@ -21,6 +25,12 @@ export function DistributionScatter({ points, xLabel, yLabel, ariaLabel }: { poi
     <div className="scatter-wrap">
       <svg className="scatter-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={ariaLabel}>
         {[0.25, 0.5, 0.75].map((line) => <line key={line} x1={padding.left} x2={width - padding.right} y1={height - padding.bottom - plotHeight * line} y2={height - padding.bottom - plotHeight * line} className="chart-grid" />)}
+        <line x1={averageXPosition} x2={averageXPosition} y1={padding.top} y2={height - padding.bottom} className="scatter-reference" />
+        <line x1={padding.left} x2={width - padding.right} y1={averageYPosition} y2={averageYPosition} className="scatter-reference" />
+        <text x={padding.left + 6} y={padding.top + 12} className="scatter-quadrant-label">低横轴 · 高纵轴</text>
+        <text x={width - padding.right - 6} y={padding.top + 12} textAnchor="end" className="scatter-quadrant-label">高横轴 · 高纵轴</text>
+        <text x={padding.left + 6} y={height - padding.bottom - 7} className="scatter-quadrant-label">低横轴 · 低纵轴</text>
+        <text x={width - padding.right - 6} y={height - padding.bottom - 7} textAnchor="end" className="scatter-quadrant-label">高横轴 · 低纵轴</text>
         <line x1={padding.left} x2={width - padding.right} y1={height - padding.bottom} y2={height - padding.bottom} className="scatter-axis-line" />
         <line x1={padding.left} x2={padding.left} y1={padding.top} y2={height - padding.bottom} className="scatter-axis-line" />
         {mapped.map((point) => <g key={point.id} className="scatter-point" onMouseEnter={() => setActiveIndex(point.index)} onMouseLeave={() => setActiveIndex(null)}><title>{`${point.label}：${point.x}，${point.y}`}</title><circle cx={point.xPosition} cy={point.yPosition} r={activeIndex === point.index ? 7 : 5} className={`scatter-dot scatter-dot-${point.category}`} /></g>)}
@@ -35,5 +45,5 @@ export function DistributionScatter({ points, xLabel, yLabel, ariaLabel }: { poi
 }
 
 export function DistributionScatterPanel({ title, description, points, xLabel, yLabel, pointUnit = "一项数据" }: { title: string; description: string; points: DistributionPoint[]; xLabel: string; yLabel: string; pointUnit?: string }) {
-  return <section className="user-distribution-panel" aria-label={title}><div className="section-heading"><div><span className="eyebrow">DISTRIBUTION</span><h2>{title}</h2><p>{description}</p></div><span className="chart-note">每个点代表{pointUnit}</span></div><DistributionScatter points={points} xLabel={xLabel} yLabel={yLabel} ariaLabel={`${title}散点图`} /></section>;
+  return <section className="user-distribution-panel" aria-label={title}><div className="section-heading"><div><span className="eyebrow">DISTRIBUTION</span><h2>{title}</h2><p>{description}</p></div><span className="chart-note">虚线为当前范围平均值 · 每个点代表{pointUnit}</span></div><DistributionScatter points={points} xLabel={xLabel} yLabel={yLabel} ariaLabel={`${title}散点图`} /></section>;
 }
