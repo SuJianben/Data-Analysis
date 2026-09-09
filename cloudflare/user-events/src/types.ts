@@ -39,3 +39,10 @@ export type UserSummaryRow = {
   visitorCount: number;
   purchaseCount: number;
 };
+
+export type UserTrendPoint = {
+  date: string;
+  events: number;
+  visitors: number;
+  purchases: number;
+};

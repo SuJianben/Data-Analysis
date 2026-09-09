@@ -14,6 +14,8 @@ import type {
   HeatmapReportRow,
   GlobalClickMetricInput,
   GlobalClickReportRow,
+  GlobalClickTrendPoint,
+  MenuTrendPoint,
   SiteMetricInput,
   SyncRun,
   TrafficTrendPoint,
@@ -224,6 +226,19 @@ export function getClickTrend(options: DateRangeOptions = {}): TrendPoint[] {
   `).all(...filter.values) as TrendPoint[];
 }
 
+export function getMenuTrend(options: DateRangeOptions = {}): MenuTrendPoint[] {
+  const filter = dateFilter(options);
+  return db.prepare(`
+    SELECT
+      event_date AS date,
+      SUM(click_count) AS clicks,
+      COUNT(DISTINCT CASE WHEN menu_name <> '' THEN menu_name END) AS menus
+    FROM menu_click_metrics ${filter.clause}
+    GROUP BY event_date
+    ORDER BY event_date ASC
+  `).all(...filter.values) as MenuTrendPoint[];
+}
+
 export function getDashboardTrafficTrend(options: DateRangeOptions = {}): TrafficTrendPoint[] {
   const filter = dateFilter(options);
   return db.prepare(`
@@ -365,6 +380,20 @@ export function getGlobalClickReportRows(options: { pagePath?: string; startDate
     "ORDER BY clickCount DESC, event_date ASC",
   ].join(" ");
   return db.prepare(query).all(...values) as GlobalClickReportRow[];
+}
+
+export function getGlobalClickTrend(options: DateRangeOptions = {}): GlobalClickTrendPoint[] {
+  const filter = dateFilter(options);
+  return db.prepare(`
+    SELECT
+      event_date AS date,
+      SUM(click_count) AS clicks,
+      COUNT(DISTINCT CASE WHEN element_key <> '' THEN element_key END) AS elements,
+      COUNT(DISTINCT CASE WHEN page_path <> '' THEN page_path END) AS pages
+    FROM global_click_metrics ${filter.clause}
+    GROUP BY event_date
+    ORDER BY event_date ASC
+  `).all(...filter.values) as GlobalClickTrendPoint[];
 }
 
 export function getGlobalClickPagePaths(): string[] {

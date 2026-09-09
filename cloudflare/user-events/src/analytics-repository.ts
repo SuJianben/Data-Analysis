@@ -199,6 +199,20 @@ export async function getMenuReportRows(env: Env, options: DateRangeOptions = {}
   return result.results;
 }
 
+export async function getMenuTrend(env: Env, options: DateRangeOptions = {}) {
+  const filter = dateFilter("event_date", options);
+  const result = await env.DB.prepare(`
+    SELECT
+      event_date AS date,
+      SUM(click_count) AS clicks,
+      COUNT(DISTINCT CASE WHEN menu_name <> '' THEN menu_name END) AS menus
+    FROM menu_click_metrics ${filter.clause}
+    GROUP BY event_date
+    ORDER BY event_date ASC
+  `).bind(...filter.values).all();
+  return result.results;
+}
+
 export async function getSiteMetricRows(env: Env, options: DateRangeOptions = {}) {
   const filter = dateFilter("event_date", options);
   const result = await env.DB.prepare(`
@@ -234,6 +248,21 @@ export async function getGlobalClickReport(env: Env, options: { pagePath?: strin
     paths: (paths.results as Array<{ value: string }>).map((row) => row.value),
     rows: rows.results,
   };
+}
+
+export async function getGlobalClickTrend(env: Env, options: DateRangeOptions = {}) {
+  const filter = dateFilter("event_date", options);
+  const result = await env.DB.prepare(`
+    SELECT
+      event_date AS date,
+      SUM(click_count) AS clicks,
+      COUNT(DISTINCT CASE WHEN element_key <> '' THEN element_key END) AS elements,
+      COUNT(DISTINCT CASE WHEN page_path <> '' THEN page_path END) AS pages
+    FROM global_click_metrics ${filter.clause}
+    GROUP BY event_date
+    ORDER BY event_date ASC
+  `).bind(...filter.values).all();
+  return result.results;
 }
 
 export async function getAnalyticsDataset(env: Env, options: DateRangeOptions = {}) {

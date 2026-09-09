@@ -1,4 +1,4 @@
-import type { Env, UserEventInput, UserSummaryRow } from "./types";
+import type { Env, UserEventInput, UserSummaryRow, UserTrendPoint } from "./types";
 import { nextDate, type DateRangeOptions } from "./date-range";
 
 const RESOLVED_EVENTS_CTE = `
@@ -91,6 +91,22 @@ export async function getUserSummaries(env: Env, limit: number, options: DateRan
     ORDER BY lastSeenAt DESC
     LIMIT ?
   `).bind(...filter.values, limit).all<UserSummaryRow>();
+  return result.results;
+}
+
+export async function getUserTrend(env: Env, options: DateRangeOptions = {}) {
+  const filter = eventDateFilter(options);
+  const result = await env.DB.prepare(`${RESOLVED_EVENTS_CTE}
+    SELECT
+      SUBSTR(occurred_at, 1, 10) AS date,
+      COUNT(*) AS events,
+      COUNT(DISTINCT identity_key) AS visitors,
+      SUM(CASE WHEN event_name = 'purchase' THEN 1 ELSE 0 END) AS purchases
+    FROM resolved_user_events
+    ${filter.clause}
+    GROUP BY SUBSTR(occurred_at, 1, 10)
+    ORDER BY date ASC
+  `).bind(...filter.values).all<UserTrendPoint>();
   return result.results;
 }
 

@@ -4,11 +4,13 @@ import { appConfig } from "@/config/env";
 import {
   getUserEvents as getLocalUserEvents,
   getUserSummaries as getLocalUserSummaries,
+  getUserTrend as getLocalUserTrend,
 } from "@/services/database/user-event-repository";
-import type { DateRangeOptions, UserEventRow, UserSummaryRow } from "@/types/analytics";
+import type { DateRangeOptions, UserEventRow, UserSummaryRow, UserTrendPoint } from "@/types/analytics";
 
 type UserSummaryResponse = { ok: boolean; rows?: UserSummaryRow[]; error?: string };
 type UserDetailResponse = { ok: boolean; events?: UserEventRow[]; error?: string };
+type UserTrendResponse = { ok: boolean; trend?: UserTrendPoint[]; error?: string };
 
 async function remoteRequest<T extends { ok: boolean; error?: string }>(path: string): Promise<T> {
   if (!appConfig.userEventApiUrl || !appConfig.userEventReadKey) {
@@ -47,4 +49,12 @@ export async function loadUserEvents(identityKey: string, limit = 500, options: 
   const suffix = query.size ? `?${query.toString()}` : "";
   const payload = await remoteRequest<UserDetailResponse>(`/users/${encodeURIComponent(identityKey)}${suffix}`);
   return (payload.events || []).slice(0, limit);
+}
+
+export async function loadUserTrend(options: DateRangeOptions = {}): Promise<UserTrendPoint[]> {
+  if (!appConfig.userEventApiUrl) return getLocalUserTrend(options);
+  const query = rangeQuery(options);
+  const suffix = query.size ? `?${query.toString()}` : "";
+  const payload = await remoteRequest<UserTrendResponse>(`/users/trend${suffix}`);
+  return payload.trend || [];
 }

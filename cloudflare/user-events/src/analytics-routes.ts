@@ -2,7 +2,9 @@ import { hasReadAccess, hasServerIngestAccess, json } from "./http";
 import {
   getAnalyticsDataset,
   getAnalyticsOverview,
+  getGlobalClickTrend,
   getGlobalClickReport,
+  getMenuTrend,
   getMenuReportRows,
   importAnalyticsDataset,
 } from "./analytics-repository";
@@ -62,6 +64,9 @@ export async function handleAnalyticsRequest(request: Request, env: Env, path: s
   if (path === "/v1/analytics/menus") {
     return json(request, env, { ok: true, rows: await getMenuReportRows(env, range) });
   }
+  if (path === "/v1/analytics/menu-trend") {
+    return json(request, env, { ok: true, trend: await getMenuTrend(env, range) });
+  }
   if (path === "/v1/analytics/global-clicks") {
     return json(request, env, {
       ok: true,
@@ -70,6 +75,9 @@ export async function handleAnalyticsRequest(request: Request, env: Env, path: s
         ...range,
       })),
     });
+  }
+  if (path === "/v1/analytics/global-click-trend") {
+    return json(request, env, { ok: true, trend: await getGlobalClickTrend(env, range) });
   }
   if (path === "/v1/analytics/dataset") {
     return json(request, env, { ok: true, dataset: await getAnalyticsDataset(env, range) });

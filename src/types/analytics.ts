@@ -167,6 +167,26 @@ export type PageEntryPoint = {
   clicks: number;
 };
 
+export type MenuTrendPoint = {
+  date: string;
+  clicks: number;
+  menus: number;
+};
+
+export type GlobalClickTrendPoint = {
+  date: string;
+  clicks: number;
+  elements: number;
+  pages: number;
+};
+
+export type UserTrendPoint = {
+  date: string;
+  events: number;
+  visitors: number;
+  purchases: number;
+};
+
 export type MenuReportRow = {
   menuName: string;
   menuKey: string;

@@ -1,5 +1,5 @@
 import { db } from "@/services/database/db";
-import type { DateRangeOptions, UserEventInput, UserEventRow, UserSummaryRow } from "@/types/analytics";
+import type { DateRangeOptions, UserEventInput, UserEventRow, UserSummaryRow, UserTrendPoint } from "@/types/analytics";
 
 const isoNow = () => new Date().toISOString();
 
@@ -105,6 +105,21 @@ export function getUserSummaries(limit = 200, options: DateRangeOptions = {}): U
     ORDER BY lastSeenAt DESC
     LIMIT ?
   `).all(...filter.values, limit) as UserSummaryRow[];
+}
+
+export function getUserTrend(options: DateRangeOptions = {}): UserTrendPoint[] {
+  const filter = eventDateFilter(options);
+  return db.prepare(`${RESOLVED_USER_EVENTS_CTE}
+    SELECT
+      SUBSTR(occurred_at, 1, 10) AS date,
+      COUNT(*) AS events,
+      COUNT(DISTINCT identity_key) AS visitors,
+      SUM(CASE WHEN event_name = 'purchase' THEN 1 ELSE 0 END) AS purchases
+    FROM resolved_user_events
+    ${filter.clause}
+    GROUP BY SUBSTR(occurred_at, 1, 10)
+    ORDER BY date ASC
+  `).all(...filter.values) as UserTrendPoint[];
 }
 
 export function getUserEvents(identityKey: string, limit = 500, options: DateRangeOptions = {}): UserEventRow[] {

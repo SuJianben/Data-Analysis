@@ -11,9 +11,11 @@ import {
   getDashboardSummary,
   getGlobalClickPagePaths,
   getGlobalClickReportRows,
+  getGlobalClickTrend,
   getLatestAnalysis,
   getLatestSnapshot,
   getMenuReportRows,
+  getMenuTrend,
   getRecentSyncRuns,
   getSiteMetricReportRows,
   getTopMenus,
@@ -26,6 +28,8 @@ import type {
   DeviceBreakdownPoint,
   ConversionFunnelPoint,
   GlobalClickReportRow,
+  GlobalClickTrendPoint,
+  MenuTrendPoint,
   MenuReportRow,
   PageEntryPoint,
   SyncRun,
@@ -107,6 +111,12 @@ export async function loadMenuReportRows(options: DateRangeOptions = {}): Promis
   return payload.rows || [];
 }
 
+export async function loadMenuTrend(options: DateRangeOptions = {}): Promise<MenuTrendPoint[]> {
+  if (!appConfig.userEventApiUrl) return getMenuTrend(options);
+  const payload = await remoteRequest<ApiEnvelope & { trend: MenuTrendPoint[] }>(`/analytics/menu-trend${rangeSuffix(options)}`);
+  return payload.trend || [];
+}
+
 export async function loadGlobalClickReport(options: { pagePath?: string; startDate?: string; endDate?: string } = {}) {
   if (!appConfig.userEventApiUrl) {
     return { paths: getGlobalClickPagePaths(), rows: getGlobalClickReportRows(options) };
@@ -120,6 +130,12 @@ export async function loadGlobalClickReport(options: { pagePath?: string; startD
     `/analytics/global-clicks${suffix}`,
   );
   return { paths: payload.paths || [], rows: payload.rows || [] };
+}
+
+export async function loadGlobalClickTrend(options: DateRangeOptions = {}): Promise<GlobalClickTrendPoint[]> {
+  if (!appConfig.userEventApiUrl) return getGlobalClickTrend(options);
+  const payload = await remoteRequest<ApiEnvelope & { trend: GlobalClickTrendPoint[] }>(`/analytics/global-click-trend${rangeSuffix(options)}`);
+  return payload.trend || [];
 }
 
 export async function loadAnalysisDataset(options: DateRangeOptions = {}): Promise<AnalysisDataset> {

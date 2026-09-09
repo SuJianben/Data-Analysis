@@ -1,12 +1,16 @@
 import { GlobalClickTable } from "@/components/global-clicks/global-click-table";
-import { loadGlobalClickReport } from "@/services/connectors/analytics";
+import { PageTrendDashboard } from "@/components/data-chart/page-trend-dashboard";
+import { loadGlobalClickReport, loadGlobalClickTrend } from "@/services/connectors/analytics";
 import { resolveDateRange, type DateRangeParams } from "@/features/date-range/date-range";
 
 export const dynamic = "force-dynamic";
 
 export default async function GlobalClicksPage({ searchParams }: { searchParams: Promise<DateRangeParams> }) {
   const range = resolveDateRange(await searchParams);
-  const { rows } = await loadGlobalClickReport(range);
+  const [{ rows }, trend] = await Promise.all([loadGlobalClickReport(range), loadGlobalClickTrend(range)]);
+  const elements = new Set(rows.map((row) => row.elementKey.trim()).filter(Boolean));
+  const pages = new Set(rows.map((row) => row.pagePath.trim()).filter(Boolean));
+  const totalClicks = trend.reduce((sum, point) => sum + Number(point.clicks || 0), 0);
   return (
     <div className="page page-enter">
       <header className="page-heading compact-heading">
@@ -16,6 +20,14 @@ export default async function GlobalClicksPage({ searchParams }: { searchParams:
           <p>统一查看链接、按钮和交互控件的真实点击数据。</p>
         </div>
       </header>
+      <PageTrendDashboard
+        title="全局点击趋势"
+        description="按所选时间范围查看全站点击量、被点击元素和涉及页面。"
+        dateRange={range}
+        metrics={[{ label: "期间点击", value: totalClicks, note: "全局点击总量" }, { label: "点击元素", value: elements.size, note: "当前范围有记录" }, { label: "涉及页面", value: pages.size, note: "当前范围有记录" }]}
+        data={trend.map(({ date, clicks, elements: elementCount, pages: pageCount }) => ({ date, values: { clicks: Number(clicks), elements: Number(elementCount), pages: Number(pageCount) } }))}
+        series={[{ key: "clicks", label: "全局点击", color: "#315efb" }, { key: "elements", label: "点击元素", color: "#7184c7" }, { key: "pages", label: "涉及页面", color: "#9ca4b8" }]}
+      />
       <section className="workspace-section table-section">
         <GlobalClickTable rows={rows} />
       </section>
