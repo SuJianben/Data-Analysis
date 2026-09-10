@@ -16,11 +16,11 @@ export function DistributionScatter({ points, xLabel, yLabel, ariaLabel, quadran
   const plotHeight = height - padding.top - padding.bottom;
   const maxX = Math.max(...points.map((point) => point.x), 1);
   const maxY = Math.max(...points.map((point) => point.y), 1);
-  const averageX = points.length ? points.reduce((sum, point) => sum + point.x, 0) / points.length : 0;
-  const averageY = points.length ? points.reduce((sum, point) => sum + point.y, 0) / points.length : 0;
-  const averageXPosition = padding.left + (averageX / maxX) * plotWidth;
-  const averageYPosition = height - padding.bottom - (averageY / maxY) * plotHeight;
-  const quadrantOf = (point: DistributionPoint): Quadrant => point.x >= averageX ? (point.y >= averageY ? "high-high" : "high-low") : (point.y >= averageY ? "low-high" : "low-low");
+  const midpointX = maxX / 2;
+  const midpointY = maxY / 2;
+  const midpointXPosition = padding.left + plotWidth / 2;
+  const midpointYPosition = padding.top + plotHeight / 2;
+  const quadrantOf = (point: DistributionPoint): Quadrant => point.x >= midpointX ? (point.y >= midpointY ? "high-high" : "high-low") : (point.y >= midpointY ? "low-high" : "low-low");
   const mapped = points.map((point, index) => ({ ...point, index, xPosition: padding.left + (point.x / maxX) * plotWidth, yPosition: height - padding.bottom - (point.y / maxY) * plotHeight }));
   const activePoint = activeIndex === null ? null : mapped[activeIndex];
 
@@ -29,13 +29,13 @@ export function DistributionScatter({ points, xLabel, yLabel, ariaLabel, quadran
     <div className="scatter-wrap">
       <div className="chart-legend scatter-legend-top"><span><i className="scatter-legend-dot scatter-dot-high-high" />{quadrantLabels["high-high"]}</span><span><i className="scatter-legend-dot scatter-dot-low-high" />{quadrantLabels["low-high"]}</span><span><i className="scatter-legend-dot scatter-dot-high-low" />{quadrantLabels["high-low"]}</span><span><i className="scatter-legend-dot scatter-dot-low-low" />{quadrantLabels["low-low"]}</span></div>
       <svg className="scatter-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={ariaLabel}>
-        <rect x={padding.left} y={padding.top} width={averageXPosition - padding.left} height={averageYPosition - padding.top} fill="#3eaec4" opacity=".08" />
-        <rect x={averageXPosition} y={padding.top} width={width - padding.right - averageXPosition} height={averageYPosition - padding.top} fill="#43a889" opacity=".08" />
-        <rect x={padding.left} y={averageYPosition} width={averageXPosition - padding.left} height={height - padding.bottom - averageYPosition} fill="#aeb8c6" opacity=".09" />
-        <rect x={averageXPosition} y={averageYPosition} width={width - padding.right - averageXPosition} height={height - padding.bottom - averageYPosition} fill="#d98a2c" opacity=".08" />
+        <rect x={padding.left} y={padding.top} width={plotWidth / 2} height={plotHeight / 2} fill="#3eaec4" opacity=".08" />
+        <rect x={midpointXPosition} y={padding.top} width={plotWidth / 2} height={plotHeight / 2} fill="#43a889" opacity=".08" />
+        <rect x={padding.left} y={midpointYPosition} width={plotWidth / 2} height={plotHeight / 2} fill="#aeb8c6" opacity=".09" />
+        <rect x={midpointXPosition} y={midpointYPosition} width={plotWidth / 2} height={plotHeight / 2} fill="#d98a2c" opacity=".08" />
         {[0.25, 0.5, 0.75].map((line) => <line key={line} x1={padding.left} x2={width - padding.right} y1={height - padding.bottom - plotHeight * line} y2={height - padding.bottom - plotHeight * line} className="chart-grid" />)}
-        <line x1={averageXPosition} x2={averageXPosition} y1={padding.top} y2={height - padding.bottom} className="scatter-reference" />
-        <line x1={padding.left} x2={width - padding.right} y1={averageYPosition} y2={averageYPosition} className="scatter-reference" />
+        <line x1={midpointXPosition} x2={midpointXPosition} y1={padding.top} y2={height - padding.bottom} className="scatter-reference" />
+        <line x1={padding.left} x2={width - padding.right} y1={midpointYPosition} y2={midpointYPosition} className="scatter-reference" />
         <line x1={padding.left} x2={width - padding.right} y1={height - padding.bottom} y2={height - padding.bottom} className="scatter-axis-line" />
         <line x1={padding.left} x2={padding.left} y1={padding.top} y2={height - padding.bottom} className="scatter-axis-line" />
         <text x={padding.left + 6} y={padding.top + 12} className="scatter-quadrant-label">{quadrantLabels["low-high"]}</text>
@@ -53,5 +53,5 @@ export function DistributionScatter({ points, xLabel, yLabel, ariaLabel, quadran
 }
 
 export function DistributionScatterPanel({ title, description, points, xLabel, yLabel, quadrantLabels, pointUnit = "一项数据" }: { title: string; description: string; points: DistributionPoint[]; xLabel: string; yLabel: string; quadrantLabels: Record<Quadrant, string>; pointUnit?: string }) {
-  return <section className="user-distribution-panel" aria-label={title}><div className="section-heading"><div><span className="eyebrow">DISTRIBUTION</span><h2>{title}</h2><p>{description}</p></div><span className="chart-note">虚线为当前范围平均值 · 每个点代表{pointUnit}</span></div><DistributionScatter points={points} xLabel={xLabel} yLabel={yLabel} quadrantLabels={quadrantLabels} ariaLabel={`${title}散点图`} /></section>;
+  return <section className="user-distribution-panel" aria-label={title}><div className="section-heading"><div><span className="eyebrow">DISTRIBUTION</span><h2>{title}</h2><p>{description}</p></div><span className="chart-note">虚线为区间中线 · 每个点代表{pointUnit}</span></div><DistributionScatter points={points} xLabel={xLabel} yLabel={yLabel} quadrantLabels={quadrantLabels} ariaLabel={`${title}散点图`} /></section>;
 }
