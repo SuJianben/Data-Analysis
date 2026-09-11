@@ -81,13 +81,18 @@
     return cleanLabel(label);
   }
 
+  function publishOne(publish, eventName, payload) {
+    var result = publish.call(window.Shopify.analytics, eventName, payload);
+    if (result && typeof result.catch === "function") result.catch(function () {});
+  }
+
   function publishShopifyEvent(params) {
     try {
       var analytics = window.Shopify && window.Shopify.analytics;
       if (!analytics) return false;
       var publish = typeof analytics.publish === "function" ? analytics.publish : analytics.publishCustomEvent;
       if (typeof publish !== "function") return false;
-      var result = publish.call(analytics, "tms:global_click", {
+      publishOne(publish, "tms:global_click", {
         ga4EventName: "global_click",
         component: "global_click",
         page_path: params.page_path,
@@ -99,7 +104,20 @@
         device_category: params.device_category,
         pageLocation: window.location.href
       });
-      if (result && typeof result.catch === "function") result.catch(function () {});
+      if (params.page_section === "navigation" || params.page_section === "header") {
+        publishOne(publish, "tms:header_navigation_click", {
+          ga4EventName: "header_navigation_click",
+          menu_name: params.element_label || "(unnamed menu)",
+          menu_key: params.element_key,
+          parent_menu_name: "",
+          menu_level: "1",
+          menu_action: params.click_target === "toggle" ? "toggle" : "navigate",
+          navigation_location: params.page_section,
+          click_target: params.destination_path,
+          device_category: params.device_category,
+          pageLocation: window.location.href
+        });
+      }
       return true;
     } catch (_error) {
       return false;

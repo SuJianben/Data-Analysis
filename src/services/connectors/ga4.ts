@@ -77,7 +77,8 @@ export async function fetchGa4Data(input: Ga4SyncInput): Promise<{
   if (!propertyId) throw new Error("缺少 GA4 Property ID。");
 
   const dateRanges = [{ startDate: input.startDate, endDate: input.endDate }];
-  const [menuReport, siteReport] = await Promise.all([
+  const warnings: string[] = [];
+  const [menuResult, siteResult] = await Promise.allSettled([
     runReport(propertyId, accessToken, {
       dateRanges,
       dimensions: [
@@ -117,8 +118,16 @@ export async function fetchGa4Data(input: Ga4SyncInput): Promise<{
     }),
   ]);
 
+  if (siteResult.status === "rejected") throw siteResult.reason;
+  const siteReport = siteResult.value;
+  const menuReport = menuResult.status === "fulfilled" ? menuResult.value : null;
+  if (menuResult.status === "rejected") {
+    warnings.push(menuResult.reason instanceof Error
+      ? `菜单数据暂未读取：${menuResult.reason.message}`
+      : "菜单数据暂未读取。请确认 GA4 已注册菜单相关自定义维度。");
+  }
+
   let heatmapReport: Ga4Response | null = null;
-  const warnings: string[] = [];
   try {
     heatmapReport = await runReport(propertyId, accessToken, {
       dateRanges,
@@ -146,7 +155,7 @@ export async function fetchGa4Data(input: Ga4SyncInput): Promise<{
       : "热力数据暂未读取。请确认 GA4 已注册 heatmap_cell、element_group、page_section 三个自定义维度。");
   }
 
-  const menuMetrics: MenuMetricInput[] = (menuReport.rows || []).map((row) => ({
+  const menuMetrics: MenuMetricInput[] = (menuReport?.rows || []).map((row) => ({
     date: normalizeGaDate(dimension(row, 1)),
     deviceCategory: dimension(row, 2) || "unknown",
     menuName: dimension(row, 3) || "(未命名菜单)",
