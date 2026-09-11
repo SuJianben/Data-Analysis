@@ -39,6 +39,7 @@ export function DateRangeFilter() {
     const query = new URLSearchParams(searchParams.toString());
     query.set("startDate", nextStart);
     query.set("endDate", nextEnd);
+    query.delete("tablePage");
     setError("");
     router.push(`${pathname}?${query.toString()}`);
   }

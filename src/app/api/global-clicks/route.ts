@@ -9,6 +9,10 @@ export async function GET(request: Request) {
   const range = resolveDateRange(Object.fromEntries(url.searchParams.entries()));
   const report = await loadGlobalClickReport({
     pagePath: url.searchParams.get("pagePath") || undefined,
+    query: url.searchParams.get("query") || undefined,
+    device: url.searchParams.get("device") || undefined,
+    page: Number(url.searchParams.get("page") || 1),
+    pageSize: Number(url.searchParams.get("pageSize") || 20),
     ...range,
   });
   return NextResponse.json({

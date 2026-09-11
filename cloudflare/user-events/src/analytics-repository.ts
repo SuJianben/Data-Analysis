@@ -1,5 +1,6 @@
 import type { AnalyticsImportPayload, ConversionFunnelPoint, DashboardSummary, DeviceBreakdownPoint } from "./analytics-types";
 import type { DateRangeOptions } from "./date-range";
+import type { GlobalClickQuery } from "./global-click-query";
 import type { Env } from "./types";
 
 type QueryResult<T> = D1Result<T>;
@@ -225,28 +226,104 @@ export async function getSiteMetricRows(env: Env, options: DateRangeOptions = {}
   return result.results;
 }
 
-export async function getGlobalClickReport(env: Env, options: { pagePath?: string; startDate?: string; endDate?: string }) {
+function globalClickFilter(options: Pick<GlobalClickQuery, "pagePath" | "query" | "device" | "startDate" | "endDate">) {
   const where: string[] = [];
   const values: string[] = [];
   if (options.pagePath) { where.push("page_path = ?"); values.push(options.pagePath); }
   if (options.startDate) { where.push("event_date >= ?"); values.push(options.startDate); }
   if (options.endDate) { where.push("event_date <= ?"); values.push(options.endDate); }
-  const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
+  if (options.device && options.device !== "all") { where.push("device_category = ?"); values.push(options.device); }
+  if (options.query) {
+    const query = options.query.toLowerCase();
+    where.push(`(
+      INSTR(LOWER(COALESCE(page_path, '')), ?) > 0 OR
+      INSTR(LOWER(COALESCE(element_key, '')), ?) > 0 OR
+      INSTR(LOWER(COALESCE(element_label, '')), ?) > 0 OR
+      INSTR(LOWER(COALESCE(destination_path, '')), ?) > 0 OR
+      INSTR(LOWER(COALESCE(page_section, '')), ?) > 0
+    )`);
+    values.push(query, query, query, query, query);
+  }
+  return { clause: where.length ? `WHERE ${where.join(" AND ")}` : "", values };
+}
+
+export async function getGlobalClickReport(env: Env, options: GlobalClickQuery) {
+  const filter = globalClickFilter(options);
   const pathFilter = dateFilter("event_date", options);
+  const groupedQuery = `
+    SELECT MIN(event_date) AS date, device_category AS deviceCategory, page_path AS pagePath,
+      element_key AS elementKey, element_label AS elementLabel, page_section AS pageSection,
+      destination_path AS destinationPath, click_target AS clickTarget, SUM(click_count) AS clickCount
+    FROM global_click_metrics ${filter.clause}
+    GROUP BY device_category, page_path, element_key, element_label, page_section, destination_path, click_target
+  `;
+  const totals = await env.DB.prepare(`
+    SELECT COUNT(*) AS totalItems, COALESCE(SUM(clickCount), 0) AS totalValue
+    FROM (${groupedQuery})
+  `).bind(...filter.values).first<{ totalItems: number; totalValue: number }>();
+  const totalItems = Number(totals?.totalItems || 0);
+  const totalPages = Math.max(1, Math.ceil(totalItems / options.pageSize));
+  const page = Math.min(options.page, totalPages);
+  const offset = (page - 1) * options.pageSize;
   const [paths, rows] = await env.DB.batch([
     env.DB.prepare(`SELECT page_path AS value FROM global_click_metrics ${pathFilter.clause} GROUP BY page_path ORDER BY SUM(click_count) DESC, page_path ASC`).bind(...pathFilter.values),
-    env.DB.prepare(`
-      SELECT MIN(event_date) AS date, device_category AS deviceCategory, page_path AS pagePath,
-        element_key AS elementKey, element_label AS elementLabel, page_section AS pageSection,
-        destination_path AS destinationPath, click_target AS clickTarget, SUM(click_count) AS clickCount
-      FROM global_click_metrics ${clause}
-      GROUP BY device_category, page_path, element_key, element_label, page_section, destination_path, click_target
+    env.DB.prepare(`${groupedQuery}
       ORDER BY clickCount DESC, pagePath ASC, elementKey ASC
-    `).bind(...values),
+      LIMIT ? OFFSET ?
+    `).bind(...filter.values, options.pageSize, offset),
   ]);
   return {
     paths: (paths.results as Array<{ value: string }>).map((row) => row.value),
     rows: rows.results,
+    pagination: {
+      page,
+      pageSize: options.pageSize,
+      totalItems,
+      totalPages,
+      totalValue: Number(totals?.totalValue || 0),
+    },
+  };
+}
+
+export async function getGlobalClickSummary(env: Env, options: DateRangeOptions = {}) {
+  const filter = dateFilter("event_date", options);
+  const [totals, devices, distribution] = await env.DB.batch([
+    env.DB.prepare(`
+      SELECT COALESCE(SUM(click_count), 0) AS totalClicks,
+        COUNT(DISTINCT CASE WHEN element_key <> '' THEN element_key END) AS elementCount,
+        COUNT(DISTINCT CASE WHEN page_path <> '' THEN page_path END) AS pageCount
+      FROM global_click_metrics ${filter.clause}
+    `).bind(...filter.values),
+    env.DB.prepare(`
+      SELECT device_category AS deviceCategory, SUM(click_count) AS value
+      FROM global_click_metrics ${filter.clause}
+      GROUP BY device_category ORDER BY value DESC, deviceCategory ASC
+    `).bind(...filter.values),
+    env.DB.prepare(`
+      SELECT
+        COALESCE(NULLIF(element_key, ''), NULLIF(element_label, ''), NULLIF(page_path, ''), 'unknown') AS id,
+        COALESCE(MAX(NULLIF(element_label, '')), MAX(NULLIF(element_key, '')), '未命名元素') AS label,
+        SUM(click_count) AS x,
+        COUNT(DISTINCT CASE WHEN page_path <> '' THEN page_path END) AS y
+      FROM global_click_metrics ${filter.clause}
+      GROUP BY COALESCE(NULLIF(element_key, ''), NULLIF(element_label, ''), NULLIF(page_path, ''), 'unknown')
+      HAVING SUM(click_count) > 0
+      ORDER BY x DESC
+    `).bind(...filter.values),
+  ]);
+  const total = totals.results[0] as { totalClicks?: number; elementCount?: number; pageCount?: number } | undefined;
+  return {
+    totalClicks: Number(total?.totalClicks || 0),
+    elementCount: Number(total?.elementCount || 0),
+    pageCount: Number(total?.pageCount || 0),
+    devices: devices.results,
+    distribution: (distribution.results as Array<{ id: string; label: string; x: number; y: number }>).map((point) => ({
+      ...point,
+      x: Number(point.x || 0),
+      y: Number(point.y || 0),
+      category: "default" as const,
+      details: [`页面覆盖：${Number(point.y || 0)} 个`],
+    })),
   };
 }
 

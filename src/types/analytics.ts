@@ -180,6 +180,14 @@ export type GlobalClickTrendPoint = {
   pages: number;
 };
 
+export type PaginationMeta = {
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+  totalValue: number;
+};
+
 export type UserTrendPoint = {
   date: string;
   events: number;
@@ -215,6 +223,28 @@ export type MenuReportRow = {
 
 export type HeatmapReportRow = HeatmapMetricInput;
 export type GlobalClickReportRow = GlobalClickMetricInput;
+
+export type GlobalClickReportQuery = DateRangeOptions & {
+  pagePath?: string;
+  query?: string;
+  device?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export type GlobalClickReport = {
+  paths: string[];
+  rows: GlobalClickReportRow[];
+  pagination: PaginationMeta;
+};
+
+export type GlobalClickSummary = {
+  totalClicks: number;
+  elementCount: number;
+  pageCount: number;
+  devices: DeviceStatPoint[];
+  distribution: DistributionPoint[];
+};
 
 export type UserSummaryRow = {
   identityKey: string;

@@ -4,12 +4,14 @@ import {
   getAnalyticsOverview,
   getGlobalClickTrend,
   getGlobalClickReport,
+  getGlobalClickSummary,
   getMenuTrend,
   getMenuReportRows,
   importAnalyticsDataset,
 } from "./analytics-repository";
 import { parseAnalyticsImportPayload } from "./analytics-validation";
 import { parseDateRange } from "./date-range";
+import { parseGlobalClickQuery } from "./global-click-query";
 import { getDataHealthReport } from "./health-repository";
 import type { Env } from "./types";
 
@@ -70,11 +72,11 @@ export async function handleAnalyticsRequest(request: Request, env: Env, path: s
   if (path === "/v1/analytics/global-clicks") {
     return json(request, env, {
       ok: true,
-      ...(await getGlobalClickReport(env, {
-        pagePath: url.searchParams.get("pagePath") || undefined,
-        ...range,
-      })),
+      ...(await getGlobalClickReport(env, parseGlobalClickQuery(url, range))),
     });
+  }
+  if (path === "/v1/analytics/global-click-summary") {
+    return json(request, env, { ok: true, summary: await getGlobalClickSummary(env, range) });
   }
   if (path === "/v1/analytics/global-click-trend") {
     return json(request, env, { ok: true, trend: await getGlobalClickTrend(env, range) });

@@ -201,9 +201,13 @@ USER_EVENT_ALLOWED_ORIGINS=https://turkforma.com,https://www.turkforma.com
 
 正式店铺可以直接提交到 Worker；Vercel 转发接口保留为兼容入口。两种方式最终都写入 D1，不会落到 Vercel 临时磁盘。
 
+全局点击明细使用 Worker 端分页：页面只请求当前 20 条明细，搜索和设备筛选在 D1 查询中完成；趋势、设备构成和分布散点通过独立汇总接口读取完整时间范围，不受当前页影响。
+
 ### Shopify 快速接入
 
 项目内的 `public/tkf-user-identity.js` 是身份与传输模块。正式店铺由现有全局点击脚本调用它，不再注册第二个点击监听器；主题只需提供 HTTPS 接口地址和 Shopify Liquid 生成的客户哈希。
+
+Shopify 自定义 Pixel 还需追加 `shopify/customer-pixels/tkf-signal-purchase-bridge.js`。该桥接订阅 `checkout_completed`，把完成购买写入同一用户事件链，只保存匿名访客标识、客户与订单的不可逆 SHA-256 哈希以及金额、币种、商品数量，不提交姓名、邮箱、电话或原始 ID。
 
 旧的 `public/tkf-user-tracker.js` 仍可用于没有现成全局点击脚本的独立站，初始化方式如下：
 
