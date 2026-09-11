@@ -5,8 +5,6 @@ import { loadUserEvents } from "@/services/connectors/user-events";
 import { notFound } from "next/navigation";
 import { dateRangeQuery, resolveDateRange, type DateRangeParams } from "@/features/date-range/date-range";
 
-export const dynamic = "force-dynamic";
-
 export default async function UserDetailPage({
   params,
   searchParams,

@@ -6,8 +6,6 @@ import { aggregateDeviceStats } from "@/utils/device-stats";
 import { DistributionScatterPanel } from "@/components/data-chart/distribution-scatter";
 import { buildElementDistributionPoints } from "@/utils/distribution-points";
 
-export const dynamic = "force-dynamic";
-
 export default async function GlobalClicksPage({ searchParams }: { searchParams: Promise<DateRangeParams> }) {
   const range = resolveDateRange(await searchParams);
   const [{ rows }, trend] = await Promise.all([loadGlobalClickReport(range), loadGlobalClickTrend(range)]);

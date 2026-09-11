@@ -6,8 +6,6 @@ import { aggregateDeviceStats } from "@/utils/device-stats";
 import { DistributionScatterPanel } from "@/components/data-chart/distribution-scatter";
 import { buildMenuDistributionPoints } from "@/utils/distribution-points";
 
-export const dynamic = "force-dynamic";
-
 export default async function MenusPage({ searchParams }: { searchParams: Promise<DateRangeParams> }) {
   const range = resolveDateRange(await searchParams);
   const [rows, trend] = await Promise.all([loadMenuReportRows(range), loadMenuTrend(range)]);

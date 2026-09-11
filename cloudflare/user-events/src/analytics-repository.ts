@@ -236,12 +236,12 @@ export async function getGlobalClickReport(env: Env, options: { pagePath?: strin
   const [paths, rows] = await env.DB.batch([
     env.DB.prepare(`SELECT page_path AS value FROM global_click_metrics ${pathFilter.clause} GROUP BY page_path ORDER BY SUM(click_count) DESC, page_path ASC`).bind(...pathFilter.values),
     env.DB.prepare(`
-      SELECT event_date AS date, device_category AS deviceCategory, page_path AS pagePath,
+      SELECT MIN(event_date) AS date, device_category AS deviceCategory, page_path AS pagePath,
         element_key AS elementKey, element_label AS elementLabel, page_section AS pageSection,
         destination_path AS destinationPath, click_target AS clickTarget, SUM(click_count) AS clickCount
       FROM global_click_metrics ${clause}
-      GROUP BY event_date, device_category, page_path, element_key, element_label, page_section, destination_path, click_target
-      ORDER BY clickCount DESC, event_date ASC
+      GROUP BY device_category, page_path, element_key, element_label, page_section, destination_path, click_target
+      ORDER BY clickCount DESC, pagePath ASC, elementKey ASC
     `).bind(...values),
   ]);
   return {

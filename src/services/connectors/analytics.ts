@@ -1,6 +1,7 @@
 import "server-only";
 
 import { appConfig } from "@/config/env";
+import { cloudflareRead, type CloudflareEnvelope } from "@/services/connectors/cloudflare-request";
 import type { AnalysisDataset } from "@/features/analysis/local-analyzer";
 import {
   getClickTrend,
@@ -48,30 +49,6 @@ export type DashboardOverview = {
   recentSyncRuns: SyncRun[];
 };
 
-type ApiEnvelope = { ok: boolean; error?: string };
-
-async function remoteRequest<T extends ApiEnvelope>(path: string): Promise<T> {
-  if (!appConfig.userEventApiUrl || !appConfig.userEventReadKey) {
-    throw new Error("Cloudflare 报表数据源配置不完整。");
-  }
-  const response = await fetch(`${appConfig.userEventApiUrl}${path}`, {
-    headers: { Authorization: `Bearer ${appConfig.userEventReadKey}` },
-    cache: "no-store",
-    signal: AbortSignal.timeout(12_000),
-  });
-  const text = await response.text();
-  let payload: T;
-  try {
-    payload = JSON.parse(text) as T;
-  } catch {
-    throw new Error(`Cloudflare 报表接口返回了非 JSON 内容（HTTP ${response.status}）。`);
-  }
-  if (!response.ok || !payload.ok) {
-    throw new Error(payload.error || `Cloudflare 报表读取失败（HTTP ${response.status}）。`);
-  }
-  return payload;
-}
-
 function rangeSuffix(options: DateRangeOptions) {
   const query = new URLSearchParams();
   if (options.startDate) query.set("startDate", options.startDate);
@@ -92,7 +69,7 @@ export async function loadDashboardOverview(options: DateRangeOptions = {}): Pro
       recentSyncRuns: getRecentSyncRuns(),
     };
   }
-  const payload = await remoteRequest<ApiEnvelope & DashboardOverview>(`/analytics/overview${rangeSuffix(options)}`);
+  const payload = await cloudflareRead<CloudflareEnvelope & DashboardOverview>(`/analytics/overview${rangeSuffix(options)}`, { errorLabel: "Cloudflare 报表读取" });
   return {
     summary: payload.summary,
     trend: payload.trend,
@@ -107,13 +84,13 @@ export async function loadDashboardOverview(options: DateRangeOptions = {}): Pro
 
 export async function loadMenuReportRows(options: DateRangeOptions = {}): Promise<MenuReportRow[]> {
   if (!appConfig.userEventApiUrl) return getMenuReportRows(options);
-  const payload = await remoteRequest<ApiEnvelope & { rows: MenuReportRow[] }>(`/analytics/menus${rangeSuffix(options)}`);
+  const payload = await cloudflareRead<CloudflareEnvelope & { rows: MenuReportRow[] }>(`/analytics/menus${rangeSuffix(options)}`, { errorLabel: "菜单报表读取" });
   return payload.rows || [];
 }
 
 export async function loadMenuTrend(options: DateRangeOptions = {}): Promise<MenuTrendPoint[]> {
   if (!appConfig.userEventApiUrl) return getMenuTrend(options);
-  const payload = await remoteRequest<ApiEnvelope & { trend: MenuTrendPoint[] }>(`/analytics/menu-trend${rangeSuffix(options)}`);
+  const payload = await cloudflareRead<CloudflareEnvelope & { trend: MenuTrendPoint[] }>(`/analytics/menu-trend${rangeSuffix(options)}`, { errorLabel: "菜单趋势读取" });
   return payload.trend || [];
 }
 
@@ -126,15 +103,16 @@ export async function loadGlobalClickReport(options: { pagePath?: string; startD
   if (options.startDate) query.set("startDate", options.startDate);
   if (options.endDate) query.set("endDate", options.endDate);
   const suffix = query.size ? `?${query.toString()}` : "";
-  const payload = await remoteRequest<ApiEnvelope & { paths: string[]; rows: GlobalClickReportRow[] }>(
+  const payload = await cloudflareRead<CloudflareEnvelope & { paths: string[]; rows: GlobalClickReportRow[] }>(
     `/analytics/global-clicks${suffix}`,
+    { errorLabel: "全局点击报表读取" },
   );
   return { paths: payload.paths || [], rows: payload.rows || [] };
 }
 
 export async function loadGlobalClickTrend(options: DateRangeOptions = {}): Promise<GlobalClickTrendPoint[]> {
   if (!appConfig.userEventApiUrl) return getGlobalClickTrend(options);
-  const payload = await remoteRequest<ApiEnvelope & { trend: GlobalClickTrendPoint[] }>(`/analytics/global-click-trend${rangeSuffix(options)}`);
+  const payload = await cloudflareRead<CloudflareEnvelope & { trend: GlobalClickTrendPoint[] }>(`/analytics/global-click-trend${rangeSuffix(options)}`, { errorLabel: "全局点击趋势读取" });
   return payload.trend || [];
 }
 
@@ -148,7 +126,7 @@ export async function loadAnalysisDataset(options: DateRangeOptions = {}): Promi
       claritySnapshot: getLatestSnapshot("clarity"),
     };
   }
-  const payload = await remoteRequest<ApiEnvelope & { dataset: AnalysisDataset }>(`/analytics/dataset${rangeSuffix(options)}`);
+  const payload = await cloudflareRead<CloudflareEnvelope & { dataset: AnalysisDataset }>(`/analytics/dataset${rangeSuffix(options)}`, { errorLabel: "分析数据读取" });
   return payload.dataset;
 }
 
@@ -160,6 +138,6 @@ export async function loadDataHealthReport(): Promise<DataHealthReport> {
   if (!appConfig.userEventApiUrl) {
     throw new Error("数据健康监控需要先连接 Cloudflare 数据源。");
   }
-  const payload = await remoteRequest<ApiEnvelope & { report: DataHealthReport }>("/analytics/health");
+  const payload = await cloudflareRead<CloudflareEnvelope & { report: DataHealthReport }>("/analytics/health", { errorLabel: "数据健康读取", fresh: true });
   return payload.report;
 }

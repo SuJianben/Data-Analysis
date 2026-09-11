@@ -4,8 +4,6 @@ import { UserDistributionScatter } from "@/components/users/user-distribution-sc
 import { loadUserDeviceBreakdown, loadUserSummaries, loadUserTrend } from "@/services/connectors/user-events";
 import { dateRangeQuery, resolveDateRange, type DateRangeParams } from "@/features/date-range/date-range";
 
-export const dynamic = "force-dynamic";
-
 export default async function UsersPage({ searchParams }: { searchParams: Promise<DateRangeParams> }) {
   const range = resolveDateRange(await searchParams);
   const rangeQuery = dateRangeQuery(range);

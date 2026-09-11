@@ -8,8 +8,6 @@ import { loadDashboardOverview } from "@/services/connectors/analytics";
 import { dateRangeQuery, resolveDateRange, type DateRangeParams } from "@/features/date-range/date-range";
 import { formatNumber } from "@/utils/format";
 
-export const dynamic = "force-dynamic";
-
 export default async function OverviewPage({ searchParams }: { searchParams: Promise<DateRangeParams> }) {
   const range = resolveDateRange(await searchParams);
   const rangeQuery = dateRangeQuery(range);

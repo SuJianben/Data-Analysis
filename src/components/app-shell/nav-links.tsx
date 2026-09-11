@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
 const links = [
@@ -11,6 +11,17 @@ const links = [
   { href: "/health", label: "数据健康", short: "检" },
   { href: "/analysis", label: "AI 分析", short: "AI" },
 ];
+
+function NavLinkContent({ short, label }: { short: string; label: string }) {
+  const { pending } = useLinkStatus();
+  return (
+    <>
+      <span className="nav-short" aria-hidden="true">{short}</span>
+      <span className="nav-label">{label}</span>
+      <span className={`nav-pending ${pending ? "is-visible" : ""}`} aria-hidden="true" />
+    </>
+  );
+}
 
 export function NavLinks() {
   const pathname = usePathname();
@@ -27,8 +38,7 @@ export function NavLinks() {
         const active = link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
         return (
           <Link className={`nav-link ${active ? "is-active" : ""}`} href={`${link.href}${suffix}`} key={link.href}>
-            <span className="nav-short" aria-hidden="true">{link.short}</span>
-            <span>{link.label}</span>
+            <NavLinkContent short={link.short} label={link.label} />
           </Link>
         );
       })}
