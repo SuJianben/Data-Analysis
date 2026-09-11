@@ -51,6 +51,7 @@
 - 已在 GA4 后台核对媒体资源为 `Top Mezek Store`（属性 `553146696`），自定义维度列表显示 10 项，名称、事件参数和事件范围均正确。
 - 创建后重新执行 `sync:tms`，菜单与点击自定义维度已被 GA4 Data API 接受，并成功向 Cloudflare D1 导入 19 行数据（`syncId=4`）。
 - 品牌调整后完成生产构建、独立 TypeScript 检查和本机真实页面预览；侧栏两行文字未溢出，浏览器标题与首页链接标签均已更新。
+- 已手动发布到 Vercel 正式环境，并在 `https://tkf-signal.vercel.app` 回读确认新品牌和页面标题生效。
 - TypeScript、Worker 类型检查、Next.js 生产构建和 Git 空白检查通过。
 
 ## 遗留问题
