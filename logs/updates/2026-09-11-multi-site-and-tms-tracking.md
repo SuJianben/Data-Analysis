@@ -29,6 +29,7 @@
 - TMS 顶部导航点击同时发布 `header_navigation_click`，字段名称与 TKF 菜单报表保持一致。
 - TMS 完成购买后会把脱敏访客、客户哈希、订单哈希、金额、币种和商品数量写入 TMS 用户链。
 - TMS GA4 属性新增 10 个事件范围自定义维度：`menu_name`、`menu_key`、`parent_menu_name`、`menu_level`、`menu_action`、`click_target`、`element_key`、`element_label`、`page_section`、`destination_path`。
+- 面板侧栏品牌由单站点含义的 `TKF Signal` 调整为“多站点数据分析”，副标题改为“数据分析工作台”，浏览器标题、说明和首页无障碍标签同步更新。
 
 ## 影响范围
 
@@ -49,6 +50,7 @@
 - TMS 首次同步后发现概览只用“菜单点击”判断是否有数据；已改为综合判断访问、用户、购买、收入和菜单点击，标准指标不再被空状态遮挡。
 - 已在 GA4 后台核对媒体资源为 `Top Mezek Store`（属性 `553146696`），自定义维度列表显示 10 项，名称、事件参数和事件范围均正确。
 - 创建后重新执行 `sync:tms`，菜单与点击自定义维度已被 GA4 Data API 接受，并成功向 Cloudflare D1 导入 19 行数据（`syncId=4`）。
+- 品牌调整后完成生产构建、独立 TypeScript 检查和本机真实页面预览；侧栏两行文字未溢出，浏览器标题与首页链接标签均已更新。
 - TypeScript、Worker 类型检查、Next.js 生产构建和 Git 空白检查通过。
 
 ## 遗留问题
