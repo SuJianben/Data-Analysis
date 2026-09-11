@@ -9,7 +9,7 @@ import type { DistributionPoint } from "@/types/analytics";
 
 const quadrantColors: Record<DistributionQuadrant, string> = { "high-high": "#43a889", "low-high": "#3eaec4", "high-low": "#d98a2c", "low-low": "#aeb8c6" };
 
-export function DistributionBubbleScatter({ points, xLabel, yLabel, ariaLabel, quadrantLabels }: { points: DistributionPoint[]; xLabel: string; yLabel: string; ariaLabel: string; quadrantLabels: Record<DistributionQuadrant, string> }) {
+export function DistributionBubbleScatter({ points, xLabel, yLabel, ariaLabel, quadrantLabels, itemLabel }: { points: DistributionPoint[]; xLabel: string; yLabel: string; ariaLabel: string; quadrantLabels: Record<DistributionQuadrant, string>; itemLabel: string }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const scale = useMemo(() => buildDistributionBubbles(points), [points]);
   const width = 760;
@@ -54,12 +54,12 @@ export function DistributionBubbleScatter({ points, xLabel, yLabel, ariaLabel, q
         {mapped.map((point) => {
           const radius = resolveBubbleRadius(point.count);
           const isActive = activeId === point.id;
-          return <g key={point.id} className="scatter-point" onMouseEnter={() => setActiveId(point.id)} onMouseLeave={() => setActiveId(null)}><title>{`${point.count} 个元素：${xLabel} ${formatNumber(point.x)}，${yLabel} ${formatNumber(point.y)}`}</title><circle cx={point.xPosition} cy={point.yPosition} r={isActive ? radius + 2 : radius} style={{ fill: quadrantColors[point.quadrant] }} className="scatter-dot scatter-bubble" data-quadrant={point.quadrant} />{point.count > 1 && <text x={point.xPosition} y={point.yPosition + 3} textAnchor="middle" className="scatter-bubble-count">{formatNumber(point.count)}</text>}</g>;
+          return <g key={point.id} className="scatter-point" onMouseEnter={() => setActiveId(point.id)} onMouseLeave={() => setActiveId(null)}><title>{`${point.count} 个${itemLabel}：${xLabel} ${formatNumber(point.x)}，${yLabel} ${formatNumber(point.y)}`}</title><circle cx={point.xPosition} cy={point.yPosition} r={isActive ? radius + 2 : radius} style={{ fill: quadrantColors[point.quadrant] }} className="scatter-dot scatter-bubble" data-quadrant={point.quadrant} />{point.count > 1 && <text x={point.xPosition} y={point.yPosition + 3} textAnchor="middle" className="scatter-bubble-count">{formatNumber(point.count)}</text>}</g>;
         })}
         <text x={padding.left} y={height - 10} className="scatter-axis-label">{formatNumber(scale.xMinimum)}</text><text x={width - padding.right} y={height - 10} textAnchor="end" className="scatter-axis-label">{formatNumber(scale.xMaximum)}</text>
         <text x={padding.left - 8} y={height - padding.bottom + 4} textAnchor="end" className="scatter-axis-label">{formatNumber(scale.yMinimum)}</text><text x={padding.left - 8} y={padding.top + 4} textAnchor="end" className="scatter-axis-label">{formatNumber(scale.yMaximum)}</text>
       </svg>
-      {activePoint && <div className="scatter-tooltip scatter-bubble-tooltip" style={tooltipStyle} role="status"><strong>{activePoint.count > 1 ? `${formatNumber(activePoint.count)} 个元素位于此处` : activePoint.labels[0]}</strong><span>{xLabel}：{formatNumber(activePoint.x)} · {yLabel}：{formatNumber(activePoint.y)}</span>{activePoint.count > 1 && <span>示例：{activePoint.labels.slice(0, 3).join("、")}</span>}{activePoint.count === 1 && activePoint.details.slice(0, 2).map((detail) => <span key={detail}>{detail}</span>)}</div>}
+      {activePoint && <div className="scatter-tooltip scatter-bubble-tooltip" style={tooltipStyle} role="status"><strong>{activePoint.count > 1 ? `${formatNumber(activePoint.count)} 个${itemLabel}位于此处` : activePoint.labels[0]}</strong><span>{xLabel}：{formatNumber(activePoint.x)} · {yLabel}：{formatNumber(activePoint.y)}</span>{activePoint.count > 1 && <span>示例：{activePoint.labels.slice(0, 3).join("、")}</span>}{activePoint.count === 1 && activePoint.details.slice(0, 2).map((detail) => <span key={detail}>{detail}</span>)}</div>}
       <div className="scatter-axis-copy"><span>横轴：{xLabel}（{formatNumber(scale.xMinimum)}–{formatNumber(scale.xMaximum)}，对数刻度）</span><span>纵轴：{yLabel}（{formatNumber(scale.yMinimum)}–{formatNumber(scale.yMaximum)}，对数刻度）</span></div>
     </div>
   );

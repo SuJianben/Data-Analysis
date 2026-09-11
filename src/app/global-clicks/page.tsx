@@ -37,7 +37,7 @@ export default async function GlobalClicksPage({ searchParams }: { searchParams:
       <section className="workspace-section table-section">
         <GlobalClickTable rows={report.rows} pagination={report.pagination} query={tableQuery.query || ""} device={tableQuery.device || "all"} />
       </section>
-      <DistributionScatterPanel title="点击元素分布气泡" description="按真实点击次数与页面覆盖范围查看元素分布；相同位置自动聚合。" xLabel="元素点击次数" yLabel="页面覆盖数" quadrantLabels={{ "high-high": "高点击·高覆盖", "low-high": "低点击·高覆盖", "high-low": "高点击·低覆盖", "low-low": "低点击·低覆盖" }} points={summary.distribution} mode="bubble-density" />
+      <DistributionScatterPanel title="点击元素分布气泡" description="按真实点击次数与页面覆盖范围查看元素分布；相同位置自动聚合。" xLabel="元素点击次数" yLabel="页面覆盖数" quadrantLabels={{ "high-high": "高点击·高覆盖", "low-high": "低点击·高覆盖", "high-low": "高点击·低覆盖", "low-low": "低点击·低覆盖" }} points={summary.distribution} mode="bubble-density" bubbleItemLabel="元素" />
     </div>
   );
 }
