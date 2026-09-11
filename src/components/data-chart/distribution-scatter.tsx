@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { DistributionBubbleScatter } from "@/components/data-chart/distribution-bubble-scatter";
 import { formatNumber } from "@/utils/format";
 import { rankDistributionPoints, type DistributionQuadrant } from "@/utils/distribution-scale";
 import type { DistributionPoint } from "@/types/analytics";
@@ -73,6 +74,7 @@ export function DistributionScatter({ points, xLabel, yLabel, ariaLabel, quadran
   );
 }
 
-export function DistributionScatterPanel({ title, description, points, xLabel, yLabel, quadrantLabels, pointUnit = "一项数据" }: { title: string; description: string; points: DistributionPoint[]; xLabel: string; yLabel: string; quadrantLabels: Record<DistributionQuadrant, string>; pointUnit?: string }) {
-  return <section className="user-distribution-panel" aria-label={title}><div className="section-heading"><div><span className="eyebrow">DISTRIBUTION</span><h2>{title}</h2><p>{description}</p></div><span className="chart-note">虚线为排名中位线 · 每个点代表{pointUnit}</span></div><DistributionScatter points={points} xLabel={xLabel} yLabel={yLabel} quadrantLabels={quadrantLabels} ariaLabel={`${title}散点图`} /></section>;
+export function DistributionScatterPanel({ title, description, points, xLabel, yLabel, quadrantLabels, pointUnit = "一项数据", mode = "ranked-points" }: { title: string; description: string; points: DistributionPoint[]; xLabel: string; yLabel: string; quadrantLabels: Record<DistributionQuadrant, string>; pointUnit?: string; mode?: "ranked-points" | "bubble-density" }) {
+  const note = mode === "bubble-density" ? "气泡大小代表同位置元素数量 · 悬停查看明细" : `虚线为排名中位线 · 每个点代表${pointUnit}`;
+  return <section className="user-distribution-panel" aria-label={title}><div className="section-heading"><div><span className="eyebrow">DISTRIBUTION</span><h2>{title}</h2><p>{description}</p></div><span className="chart-note">{note}</span></div>{mode === "bubble-density" ? <DistributionBubbleScatter points={points} xLabel={xLabel} yLabel={yLabel} quadrantLabels={quadrantLabels} ariaLabel={`${title}聚合气泡散点图`} /> : <DistributionScatter points={points} xLabel={xLabel} yLabel={yLabel} quadrantLabels={quadrantLabels} ariaLabel={`${title}散点图`} />}</section>;
 }
