@@ -6,20 +6,21 @@ import { siteList } from "@/config/sites";
 import { resolveSite } from "@/features/site-selection/site-selection";
 
 const links = [
-  { href: "/", label: "概览", short: "概" },
-  { href: "/menus", label: "菜单分析", short: "菜" },
-  { href: "/global-clicks", label: "全局埋点", short: "点" },
-  { href: "/users", label: "用户行为", short: "人" },
-  { href: "/health", label: "数据健康", short: "检" },
-  { href: "/analysis", label: "AI 分析", short: "AI" },
+  { href: "/", label: "概览", short: "概", sub: "Overview" },
+  { href: "/menus", label: "菜单分析", short: "菜", sub: "Menu Analytics" },
+  { href: "/global-clicks", label: "全局埋点", short: "点", sub: "Click Tracking" },
+  { href: "/users", label: "用户行为", short: "人", sub: "User Behavior" },
+  { href: "/health", label: "数据健康", short: "检", sub: "Data Health" },
+  { href: "/analysis", label: "AI 分析", short: "AI", sub: "AI Insights" },
 ];
 
-function NavLinkContent({ short, label }: { short: string; label: string }) {
+function NavLinkContent({ short, label, sub }: { short: string; label: string; sub: string }) {
   const { pending } = useLinkStatus();
   return (
     <>
       <span className="nav-short" aria-hidden="true">{short}</span>
-      <span className="nav-label">{label}</span>
+      <span className="nav-copy"><span className="nav-label">{label}</span><small className="nav-sub">{sub}</small></span>
+      <span className="nav-chevron" aria-hidden="true">⌄</span>
       <span className={`nav-pending ${pending ? "is-visible" : ""}`} aria-hidden="true" />
     </>
   );
@@ -43,7 +44,7 @@ export function NavLinks() {
         return (
           <div className={`nav-group ${active ? "is-open" : ""}`} key={link.href}>
             <Link className={`nav-link ${active ? "is-active" : ""}`} href={primaryHref}>
-              <NavLinkContent short={link.short} label={link.label} />
+              <NavLinkContent short={link.short} label={link.label} sub={link.sub} />
             </Link>
             {active && (
               <div className="nav-sites" aria-label={`${link.label}站点选择`}>

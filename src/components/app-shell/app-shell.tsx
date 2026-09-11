@@ -11,8 +11,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="app-frame">
       <aside className="sidebar">
         <Link className="brand" href="/" aria-label="多站点数据分析首页">
-          <span className="brand-mark"><i /><i /><i /></span>
-          <span><strong>多站点数据分析</strong><small>数据分析工作台</small></span>
+          <span className="brand-mark" aria-hidden="true">◈</span>
+          <span className="brand-copy"><strong>多站点数据分析</strong><small>数据分析工作台</small></span>
         </Link>
         <Suspense fallback={<nav className="nav-list" aria-label="主导航" />}><NavLinks /></Suspense>
         <div className="sidebar-foot">
