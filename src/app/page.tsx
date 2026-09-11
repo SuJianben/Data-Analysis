@@ -17,7 +17,11 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
   const selectedSite = sites[site];
   const rangeQuery = siteRangeQuery(site, range);
   const { summary, trend, trafficTrend, funnel, deviceBreakdown, topPages, topMenus, recentSyncRuns: runs } = await loadDashboardOverview({ ...range, site });
-  const hasData = summary.clicks > 0;
+  const hasData = summary.clicks > 0
+    || summary.users > 0
+    || summary.purchases > 0
+    || summary.revenue > 0
+    || trafficTrend.some((point) => point.pageViews > 0 || point.users > 0 || point.sessions > 0);
   const topMax = Math.max(...topMenus.map((menu) => menu.clickCount), 1);
   return (
     <div className="page page-enter">
