@@ -18,6 +18,7 @@ export const userEventSchema = z.object({
 });
 
 export const userEventPayloadSchema = z.object({
+  siteKey: z.enum(["tkf", "tms"]).default("tkf"),
   source: z.string().min(1).max(80).default("storefront"),
   event: userEventSchema.optional(),
   events: z.array(userEventSchema).max(50).optional(),

@@ -4,23 +4,27 @@ import { loadGlobalClickReport, loadGlobalClickSummary, loadGlobalClickTrend } f
 import { resolveDateRange, type DateRangeParams } from "@/features/date-range/date-range";
 import { DistributionScatterPanel } from "@/components/data-chart/distribution-scatter";
 import { resolveGlobalClickQuery } from "@/features/report-pagination/global-click-query";
+import { resolveSite } from "@/features/site-selection/site-selection";
+import { sites } from "@/config/sites";
 
 export default async function GlobalClicksPage({ searchParams }: { searchParams: Promise<DateRangeParams> }) {
   const params = await searchParams;
   const range = resolveDateRange(params);
+  const site = resolveSite(params);
+  const selectedSite = sites[site];
   const tableQuery = resolveGlobalClickQuery(params);
   const [report, summary, trend] = await Promise.all([
-    loadGlobalClickReport({ ...range, ...tableQuery }),
-    loadGlobalClickSummary(range),
-    loadGlobalClickTrend(range),
+    loadGlobalClickReport({ ...range, ...tableQuery, site }),
+    loadGlobalClickSummary({ ...range, site }),
+    loadGlobalClickTrend({ ...range, site }),
   ]);
   return (
     <div className="page page-enter">
       <header className="page-heading compact-heading">
         <div>
-          <span className="section-number">03 / INTERACTIONS</span>
+          <span className="section-number">03 / INTERACTIONS · {selectedSite.shortLabel}</span>
           <h1>全局点击埋点</h1>
-          <p>统一查看链接、按钮和交互控件的真实点击数据。</p>
+          <p>统一查看 {selectedSite.label} 的链接、按钮和交互控件真实点击数据。</p>
         </div>
       </header>
       <PageTrendDashboard

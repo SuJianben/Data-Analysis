@@ -1,6 +1,6 @@
 # TKF Signal
 
-TKF Signal 是一个仅在本机运行的数据同步、菜单报表和 AI 分析工作台。长期凭据只保存在本机 `.env.local`，临时令牌只参与当前请求，两者都不会写入数据库。
+TKF Signal 是一个支持 TKF、TMS 站点隔离的数据同步、菜单报表、用户行为和 AI 分析工作台。线上数据保存到 Cloudflare D1，本机仍可使用 SQLite 进行开发。长期凭据只保存在本机 `.env.local`，临时令牌只参与当前请求，两者都不会写入数据库。
 
 ## 启动
 
@@ -53,6 +53,7 @@ npm start
 
 ```json
 {
+  "siteKey": "tkf",
   "source": "shopify",
   "period": {
     "start": "2026-09-01",
@@ -89,6 +90,7 @@ npm start
 
 ```json
 {
+  "siteKey": "tkf",
   "propertyId": "546810508",
   "accessToken": "仅本次请求使用的 OAuth Access Token",
   "startDate": "2026-09-01",
@@ -108,11 +110,14 @@ TKF_ANALYTICS_IMPORT_KEY=与 Worker SERVER_INGEST_KEY 相同的密钥
 LOCAL_SYNC_URL=http://localhost:3000/api/sync/ga4
 ```
 
-运行最近 3 天：
+分别同步 TKF 或 TMS 最近 3 天：
 
 ```bash
-npm run sync:ga4-to-cloudflare
+npm run sync:tkf
+npm run sync:tms
 ```
+
+TKF 使用 `TKF_GA4_PROPERTY_ID`，TMS 使用 `TMS_GA4_PROPERTY_ID`。这里必须填写 GA4 的纯数字属性 ID，不能填写以 `G-` 开头的衡量 ID。兼容旧配置时，TKF 仍可读取 `GA4_PROPERTY_ID`。
 
 面板顶部提供 7 天、30 天、90 天和自定义起止日期。时间范围通过 URL 在各页面间保留，并由 Worker/D1 实际过滤概览、菜单、全局点击、用户行为和 AI 数据集。
 
@@ -160,6 +165,7 @@ node scripts/sync-ga4-to-cloudflare.mjs --start-date 2026-09-01 --end-date 2026-
 
 ```json
 {
+  "siteKey": "tms",
   "source": "shopify",
   "event": {
     "eventId": "evt_01J8YV7Q2QK3",
@@ -180,7 +186,7 @@ node scripts/sync-ga4-to-cloudflare.mjs --start-date 2026-09-01 --end-date 2026-
 
 ### Cloudflare Worker + D1
 
-线上报表和用户事件以 Cloudflare D1 为唯一数据源，Worker 地址不包含结尾斜杠：
+线上报表和用户事件以 Cloudflare D1 为唯一数据源，所有报表、用户和事件都按 `site=tkf` 或 `site=tms` 隔离。Worker 地址不包含结尾斜杠：
 
 ```text
 USER_EVENT_API_URL=https://你的Worker地址/v1

@@ -51,7 +51,9 @@ export async function handleAnalyticsRequest(request: Request, env: Env, path: s
   if (denied) return denied;
   const url = new URL(request.url);
   if (path === "/v1/analytics/health") {
-    return json(request, env, { ok: true, report: await getDataHealthReport(env) });
+    const site = url.searchParams.get("site") || "tkf";
+    if (site !== "tkf" && site !== "tms") return json(request, env, { ok: false, error: "站点参数不正确。" }, 400);
+    return json(request, env, { ok: true, report: await getDataHealthReport(env, site) });
   }
   let range;
   try {

@@ -11,8 +11,8 @@ function firstValue(result: QueryResult<ValueRow>) {
 }
 
 function dateFilter(column: string, options: DateRangeOptions, extra: string[] = []) {
-  const conditions = [...extra];
-  const values: string[] = [];
+  const conditions = ["site_key = ?", ...extra];
+  const values: string[] = [options.site || "tkf"];
   if (options.startDate) { conditions.push(`${column} >= ?`); values.push(options.startDate); }
   if (options.endDate) { conditions.push(`${column} <= ?`); values.push(options.endDate); }
   return { clause: conditions.length ? `WHERE ${conditions.join(" AND ")}` : "", values };
@@ -21,32 +21,32 @@ function dateFilter(column: string, options: DateRangeOptions, extra: string[] =
 export async function importAnalyticsDataset(env: Env, payload: AnalyticsImportPayload) {
   const importedAt = new Date().toISOString();
   const statements: D1PreparedStatement[] = [
-    env.DB.prepare("DELETE FROM menu_click_metrics WHERE source = ? AND event_date BETWEEN ? AND ?").bind(payload.source, payload.period.start, payload.period.end),
-    env.DB.prepare("DELETE FROM site_metrics WHERE source = ? AND event_date BETWEEN ? AND ?").bind(payload.source, payload.period.start, payload.period.end),
-    env.DB.prepare("DELETE FROM global_click_metrics WHERE source = ? AND event_date BETWEEN ? AND ?").bind(payload.source, payload.period.start, payload.period.end),
+    env.DB.prepare("DELETE FROM menu_click_metrics WHERE site_key = ? AND source = ? AND event_date BETWEEN ? AND ?").bind(payload.siteKey, payload.source, payload.period.start, payload.period.end),
+    env.DB.prepare("DELETE FROM site_metrics WHERE site_key = ? AND source = ? AND event_date BETWEEN ? AND ?").bind(payload.siteKey, payload.source, payload.period.start, payload.period.end),
+    env.DB.prepare("DELETE FROM global_click_metrics WHERE site_key = ? AND source = ? AND event_date BETWEEN ? AND ?").bind(payload.siteKey, payload.source, payload.period.start, payload.period.end),
   ];
 
   for (const row of payload.menuMetrics) {
     statements.push(env.DB.prepare(`
       INSERT INTO menu_click_metrics (
         source, event_date, device_category, menu_name, menu_key, parent_menu_name,
-        menu_level, menu_action, navigation_location, click_target, click_count, imported_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        menu_level, menu_action, navigation_location, click_target, click_count, imported_at, site_key
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       payload.source, row.date, row.deviceCategory || "unknown", row.menuName, row.menuKey || "",
       row.parentMenuName || "", row.menuLevel || "", row.menuAction || "",
-      row.navigationLocation || "header", row.clickTarget || "", row.clickCount, importedAt,
+      row.navigationLocation || "header", row.clickTarget || "", row.clickCount, importedAt, payload.siteKey,
     ));
   }
 
   for (const row of payload.siteMetrics) {
     statements.push(env.DB.prepare(`
       INSERT INTO site_metrics (
-        source, event_date, device_category, event_name, event_count, total_users, total_revenue, imported_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        source, event_date, device_category, event_name, event_count, total_users, total_revenue, imported_at, site_key
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       payload.source, row.date, row.deviceCategory || "unknown", row.eventName, row.eventCount,
-      row.totalUsers || 0, row.totalRevenue || 0, importedAt,
+      row.totalUsers || 0, row.totalRevenue || 0, importedAt, payload.siteKey,
     ));
   }
 
@@ -54,31 +54,31 @@ export async function importAnalyticsDataset(env: Env, payload: AnalyticsImportP
     statements.push(env.DB.prepare(`
       INSERT INTO global_click_metrics (
         source, event_date, device_category, page_path, element_key, element_label,
-        page_section, destination_path, click_target, click_count, imported_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        page_section, destination_path, click_target, click_count, imported_at, site_key
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       payload.source, row.date, row.deviceCategory || "unknown", row.pagePath || "/", row.elementKey,
       row.elementLabel || "", row.pageSection || "other", row.destinationPath || "",
-      row.clickTarget || "other", row.clickCount, importedAt,
+      row.clickTarget || "other", row.clickCount, importedAt, payload.siteKey,
     ));
   }
 
   const rowCount = payload.menuMetrics.length + payload.siteMetrics.length + payload.globalClickMetrics.length;
   statements.push(env.DB.prepare(`
     INSERT INTO analytics_sync_runs (
-      source, period_start, period_end, status, row_count, message, imported_at
-    ) VALUES (?, ?, ?, 'success', ?, ?, ?)
+      source, period_start, period_end, status, row_count, message, imported_at, site_key
+    ) VALUES (?, ?, ?, 'success', ?, ?, ?, ?)
     ON CONFLICT(source, period_start, period_end) DO UPDATE SET
       status = excluded.status,
       row_count = excluded.row_count,
       message = excluded.message,
       imported_at = excluded.imported_at
-  `).bind(payload.source, payload.period.start, payload.period.end, rowCount, "数据已同步到 Cloudflare D1", importedAt));
+  `).bind(payload.source, payload.period.start, payload.period.end, rowCount, "数据已同步到 Cloudflare D1", importedAt, payload.siteKey));
 
   await env.DB.batch(statements);
   const sync = await env.DB.prepare(
-    "SELECT id FROM analytics_sync_runs WHERE source = ? AND period_start = ? AND period_end = ?",
-  ).bind(payload.source, payload.period.start, payload.period.end).first<{ id: number }>();
+    "SELECT id FROM analytics_sync_runs WHERE site_key = ? AND source = ? AND period_start = ? AND period_end = ?",
+  ).bind(payload.siteKey, payload.source, payload.period.start, payload.period.end).first<{ id: number }>();
   return { syncId: sync?.id ?? null, rowCount, importedAt };
 }
 
@@ -88,8 +88,8 @@ export async function getAnalyticsOverview(env: Env, options: DateRangeOptions =
   const siteFilter = dateFilter("event_date", options);
   const purchaseFilter = dateFilter("event_date", options, ["event_name = 'purchase'"]);
   const pageViewFilter = dateFilter("event_date", options, ["event_name = 'page_view'"]);
-  const syncConditions: string[] = ["status = 'success'"];
-  const syncValues: string[] = [];
+  const syncConditions: string[] = ["site_key = ?", "status = 'success'"];
+  const syncValues: string[] = [options.site || "tkf"];
   if (options.startDate) { syncConditions.push("period_end >= ?"); syncValues.push(options.startDate); }
   if (options.endDate) { syncConditions.push("period_start <= ?"); syncValues.push(options.endDate); }
   const syncClause = `WHERE ${syncConditions.join(" AND ")}`;
@@ -226,9 +226,9 @@ export async function getSiteMetricRows(env: Env, options: DateRangeOptions = {}
   return result.results;
 }
 
-function globalClickFilter(options: Pick<GlobalClickQuery, "pagePath" | "query" | "device" | "startDate" | "endDate">) {
-  const where: string[] = [];
-  const values: string[] = [];
+function globalClickFilter(options: Pick<GlobalClickQuery, "pagePath" | "query" | "device" | "startDate" | "endDate" | "site">) {
+  const where: string[] = ["site_key = ?"];
+  const values: string[] = [options.site || "tkf"];
   if (options.pagePath) { where.push("page_path = ?"); values.push(options.pagePath); }
   if (options.startDate) { where.push("event_date >= ?"); values.push(options.startDate); }
   if (options.endDate) { where.push("event_date <= ?"); values.push(options.endDate); }

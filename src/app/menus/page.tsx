@@ -5,17 +5,23 @@ import { resolveDateRange, type DateRangeParams } from "@/features/date-range/da
 import { aggregateDeviceStats } from "@/utils/device-stats";
 import { DistributionScatterPanel } from "@/components/data-chart/distribution-scatter";
 import { buildMenuDistributionPoints } from "@/utils/distribution-points";
+import { resolveSite } from "@/features/site-selection/site-selection";
+import { sites } from "@/config/sites";
 
 export default async function MenusPage({ searchParams }: { searchParams: Promise<DateRangeParams> }) {
-  const range = resolveDateRange(await searchParams);
-  const [rows, trend] = await Promise.all([loadMenuReportRows(range), loadMenuTrend(range)]);
+  const params = await searchParams;
+  const range = resolveDateRange(params);
+  const site = resolveSite(params);
+  const selectedSite = sites[site];
+  const query = { ...range, site };
+  const [rows, trend] = await Promise.all([loadMenuReportRows(query), loadMenuTrend(query)]);
   const menuNames = new Set(rows.map((row) => row.menuName.trim()).filter(Boolean));
   const totalClicks = trend.reduce((sum, point) => sum + Number(point.clicks || 0), 0);
   const devices = aggregateDeviceStats(rows, (row) => row.deviceCategory, (row) => row.clickCount);
   const scatterPoints = buildMenuDistributionPoints(rows);
   return (
     <div className="page page-enter">
-      <header className="page-heading compact-heading"><div><span className="section-number">02 / NAVIGATION</span><h1>菜单点击分析</h1><p>按菜单、层级、行为和设备检查导航使用情况。</p></div></header>
+      <header className="page-heading compact-heading"><div><span className="section-number">02 / NAVIGATION · {selectedSite.shortLabel}</span><h1>菜单点击分析</h1><p>按菜单、层级、行为和设备检查 {selectedSite.label} 的导航使用情况。</p></div></header>
       <PageTrendDashboard
         title="菜单使用趋势"
         description="按所选时间范围查看菜单点击量与每日有点击的菜单数量。"

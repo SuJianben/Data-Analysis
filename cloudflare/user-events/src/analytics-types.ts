@@ -1,3 +1,5 @@
+import type { SiteKey } from "./types";
+
 export type MenuMetricInput = {
   date: string;
   deviceCategory?: string;
@@ -33,6 +35,7 @@ export type GlobalClickMetricInput = {
 };
 
 export type AnalyticsImportPayload = {
+  siteKey: SiteKey;
   source: string;
   period: { start: string; end: string };
   menuMetrics: MenuMetricInput[];

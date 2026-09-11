@@ -1,6 +1,7 @@
 export type DateRangeOptions = {
   startDate?: string;
   endDate?: string;
+  site?: "tkf" | "tms";
 };
 
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -17,7 +18,9 @@ export function parseDateRange(url: URL): DateRangeOptions {
   if (startDate && !isIsoDate(startDate)) throw new Error("开始日期格式不正确。");
   if (endDate && !isIsoDate(endDate)) throw new Error("结束日期格式不正确。");
   if (startDate && endDate && startDate > endDate) throw new Error("开始日期不能晚于结束日期。");
-  return { startDate, endDate };
+  const rawSite = url.searchParams.get("site") || "tkf";
+  if (rawSite !== "tkf" && rawSite !== "tms") throw new Error("站点参数不正确。");
+  return { startDate, endDate, site: rawSite };
 }
 
 export function nextDate(value: string) {

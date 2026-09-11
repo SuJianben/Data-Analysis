@@ -1,6 +1,6 @@
 import type { DateRangeOptions } from "@/types/analytics";
 
-export type DateRange = Required<DateRangeOptions>;
+export type DateRange = Required<Pick<DateRangeOptions, "startDate" | "endDate">>;
 
 export type DateRangeParams = Record<string, string | string[] | undefined>;
 

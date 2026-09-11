@@ -1,14 +1,15 @@
-import type { DeviceStatPoint, Env, UserEventInput, UserSummaryRow, UserTrendPoint } from "./types";
+import type { DeviceStatPoint, Env, SiteKey, UserEventInput, UserSummaryRow, UserTrendPoint } from "./types";
 import { nextDate, type DateRangeOptions } from "./date-range";
 
 const RESOLVED_EVENTS_CTE = `
   WITH visitor_accounts AS (
     SELECT
+      site_key,
       visitor_id,
       COUNT(DISTINCT CASE WHEN customer_id_hash <> '' THEN customer_id_hash END) AS account_count,
       MAX(NULLIF(customer_id_hash, '')) AS account_hash
     FROM user_events
-    GROUP BY visitor_id
+    GROUP BY site_key, visitor_id
   ),
   resolved_user_events AS (
     SELECT
@@ -28,26 +29,26 @@ const RESOLVED_EVENTS_CTE = `
         ELSE user_events.visitor_id
       END AS identity_id
     FROM user_events
-    JOIN visitor_accounts ON visitor_accounts.visitor_id = user_events.visitor_id
+    JOIN visitor_accounts ON visitor_accounts.site_key = user_events.site_key AND visitor_accounts.visitor_id = user_events.visitor_id
   )
 `;
 
-function eventDateFilter(options: DateRangeOptions, extra: string[] = []) {
-  const conditions = [...extra];
-  const values: string[] = [];
+function eventDateFilter(options: DateRangeOptions, extra: string[] = [], extraValues: string[] = []) {
+  const conditions = ["site_key = ?", ...extra];
+  const values: string[] = [options.site || "tkf", ...extraValues];
   if (options.startDate) { conditions.push("occurred_at >= ?"); values.push(`${options.startDate}T00:00:00.000Z`); }
   if (options.endDate) { conditions.push("occurred_at < ?"); values.push(`${nextDate(options.endDate)}T00:00:00.000Z`); }
   return { clause: conditions.length ? `WHERE ${conditions.join(" AND ")}` : "", values };
 }
 
-export async function saveEvents(env: Env, source: string, events: UserEventInput[]) {
+export async function saveEvents(env: Env, siteKey: SiteKey, source: string, events: UserEventInput[]) {
   const receivedAt = new Date().toISOString();
   const statements = events.map((event) => env.DB.prepare(`
     INSERT INTO user_events (
       source, event_id, visitor_id, customer_id_hash, session_id, event_name, occurred_at,
       page_path, element_key, element_label, page_section, destination_path, click_target,
-      device_category, metadata_json, received_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      device_category, metadata_json, received_at, site_key
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(source, event_id) DO NOTHING
   `).bind(
     source,
@@ -66,6 +67,7 @@ export async function saveEvents(env: Env, source: string, events: UserEventInpu
     event.deviceCategory || "unknown",
     JSON.stringify(event.metadata || {}),
     receivedAt,
+    siteKey,
   ));
   const results = await env.DB.batch(statements);
   return results.reduce((sum, result) => sum + Number(result.meta.changes || 0), 0);
@@ -141,7 +143,7 @@ type StoredUserEvent = {
 };
 
 export async function getUserEvents(env: Env, identityKey: string, limit: number, options: DateRangeOptions = {}) {
-  const filter = eventDateFilter(options, ["identity_key = ?"]);
+  const filter = eventDateFilter(options, ["identity_key = ?"], [identityKey]);
   const result = await env.DB.prepare(`${RESOLVED_EVENTS_CTE}
     SELECT
       event_id AS eventId,
@@ -163,7 +165,7 @@ export async function getUserEvents(env: Env, identityKey: string, limit: number
     ${filter.clause}
     ORDER BY occurred_at DESC
     LIMIT ?
-  `).bind(identityKey, ...filter.values, limit).all<StoredUserEvent>();
+  `).bind(...filter.values, limit).all<StoredUserEvent>();
   return result.results.map((row) => {
     const { metadataJson, ...event } = row;
     let metadata: Record<string, unknown> = {};

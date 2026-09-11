@@ -1,6 +1,7 @@
 import { appConfig } from "@/config/env";
 import { saveUserEvents } from "@/services/database/user-event-repository";
 import type { UserEventInput } from "@/types/analytics";
+import type { SiteKey } from "@/config/sites";
 
 type ForwardResponse = {
   ok?: boolean;
@@ -14,9 +15,9 @@ export type UserEventIngestionResult = {
   inserted: number;
 };
 
-export async function ingestUserEvents(source: string, events: UserEventInput[]): Promise<UserEventIngestionResult> {
+export async function ingestUserEvents(source: string, events: UserEventInput[], siteKey: SiteKey = "tkf"): Promise<UserEventIngestionResult> {
   if (!appConfig.userEventForwardUrl) {
-    return { mode: "stored", received: events.length, inserted: saveUserEvents(source, events) };
+    return { mode: "stored", received: events.length, inserted: saveUserEvents(source, events, siteKey) };
   }
 
   const endpoint = new URL(appConfig.userEventForwardUrl);
@@ -30,7 +31,7 @@ export async function ingestUserEvents(source: string, events: UserEventInput[])
   const response = await fetch(endpoint, {
     method: "POST",
     headers,
-    body: JSON.stringify({ source, events }),
+    body: JSON.stringify({ siteKey, source, events }),
     cache: "no-store",
     signal: AbortSignal.timeout(12_000),
   });

@@ -17,6 +17,7 @@ type UserDeviceResponse = { ok: boolean; devices?: DeviceStatPoint[]; error?: st
 
 function rangeQuery(options: DateRangeOptions) {
   const query = new URLSearchParams();
+  if (options.site) query.set("site", options.site);
   if (options.startDate) query.set("startDate", options.startDate);
   if (options.endDate) query.set("endDate", options.endDate);
   return query;

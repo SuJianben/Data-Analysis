@@ -61,7 +61,9 @@ export function parseUserEventPayload(value: unknown): UserEventPayload {
   const source = value.source === undefined ? "shopify" : requiredString(value.source, "source", 1, 80);
   const rawEvents = Array.isArray(value.events) ? value.events : value.event ? [value.event] : [];
   if (!rawEvents.length || rawEvents.length > 50) throw new Error("每次需要提交 1 至 50 个事件。");
-  return { source, events: rawEvents.map(parseEvent) };
+  const siteKey = value.siteKey === undefined ? "tkf" : requiredString(value.siteKey, "siteKey", 3, 3);
+  if (siteKey !== "tkf" && siteKey !== "tms") throw new Error("siteKey 只支持 tkf 或 tms。");
+  return { siteKey, source, events: rawEvents.map(parseEvent) };
 }
 
 export function parseIdentityKey(value: string) {

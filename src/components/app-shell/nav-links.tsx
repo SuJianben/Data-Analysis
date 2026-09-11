@@ -2,6 +2,8 @@
 
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { siteList } from "@/config/sites";
+import { resolveSite } from "@/features/site-selection/site-selection";
 
 const links = [
   { href: "/", label: "概览", short: "概" },
@@ -26,20 +28,45 @@ function NavLinkContent({ short, label }: { short: string; label: string }) {
 export function NavLinks() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const currentSite = resolveSite(searchParams);
   const rangeQuery = new URLSearchParams();
   const startDate = searchParams.get("startDate");
   const endDate = searchParams.get("endDate");
   if (startDate) rangeQuery.set("startDate", startDate);
   if (endDate) rangeQuery.set("endDate", endDate);
-  const suffix = rangeQuery.size ? `?${rangeQuery.toString()}` : "";
+  rangeQuery.set("site", currentSite);
   return (
     <nav className="nav-list" aria-label="主导航">
       {links.map((link) => {
         const active = link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
+        const primaryHref = `${link.href}?${rangeQuery.toString()}`;
         return (
-          <Link className={`nav-link ${active ? "is-active" : ""}`} href={`${link.href}${suffix}`} key={link.href}>
-            <NavLinkContent short={link.short} label={link.label} />
-          </Link>
+          <div className={`nav-group ${active ? "is-open" : ""}`} key={link.href}>
+            <Link className={`nav-link ${active ? "is-active" : ""}`} href={primaryHref}>
+              <NavLinkContent short={link.short} label={link.label} />
+            </Link>
+            {active && (
+              <div className="nav-sites" aria-label={`${link.label}站点选择`}>
+                {siteList.map((site) => {
+                  const query = new URLSearchParams(rangeQuery);
+                  query.set("site", site.key);
+                  query.delete("tablePage");
+                  query.delete("query");
+                  query.delete("device");
+                  return (
+                    <Link
+                      className={`nav-site-link ${site.key === currentSite ? "is-active" : ""}`}
+                      href={`${link.href}?${query.toString()}`}
+                      key={site.key}
+                    >
+                      <span>{site.shortLabel}</span>
+                      <small>{site.label}</small>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         );
       })}
     </nav>

@@ -6,6 +6,7 @@ import { finishSync, saveGlobalClickMetrics, saveHeatmapMetrics, saveMenuMetrics
 export const runtime = "nodejs";
 
 const schema = z.object({
+  siteKey: z.enum(["tkf", "tms"]).default("tkf"),
   accessToken: z.string().optional(),
   propertyId: z.string().min(1),
   startDate: z.string().min(8),
@@ -15,18 +16,20 @@ const schema = z.object({
 export async function POST(request: Request) {
   let syncId: number | null = null;
   try {
-    syncId = startSync("ga4");
     const input = schema.parse(await request.json());
+    const source = `ga4:${input.siteKey}`;
+    syncId = startSync(source, input.siteKey);
     const result = await fetchGa4Data(input);
-    saveMenuMetrics("ga4", result.menuMetrics);
-    saveSiteMetrics("ga4", result.siteMetrics);
-    saveHeatmapMetrics("ga4", result.heatmapMetrics);
-    saveGlobalClickMetrics("ga4", result.globalClickMetrics);
+    saveMenuMetrics(source, result.menuMetrics, input.siteKey);
+    saveSiteMetrics(source, result.siteMetrics, input.siteKey);
+    saveHeatmapMetrics(source, result.heatmapMetrics, input.siteKey);
+    saveGlobalClickMetrics(source, result.globalClickMetrics, input.siteKey);
     saveSnapshot(
-      { source: "ga4", counts: { menus: result.menuMetrics.length, metrics: result.siteMetrics.length, heatmap: result.heatmapMetrics.length, globalClicks: result.globalClickMetrics.length }, warnings: result.warnings },
+      { siteKey: input.siteKey, source, counts: { menus: result.menuMetrics.length, metrics: result.siteMetrics.length, heatmap: result.heatmapMetrics.length, globalClicks: result.globalClickMetrics.length }, warnings: result.warnings },
       input.startDate,
       input.endDate,
-      "ga4",
+      source,
+      input.siteKey,
     );
     const rowCount = result.menuMetrics.length + result.siteMetrics.length + result.heatmapMetrics.length + result.globalClickMetrics.length;
     const message = result.warnings.length

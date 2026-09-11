@@ -41,6 +41,7 @@ import type {
   TrafficTrendPoint,
   TrendPoint,
 } from "@/types/analytics";
+import type { SiteKey } from "@/config/sites";
 
 export type DashboardOverview = {
   summary: DashboardSummary;
@@ -55,6 +56,7 @@ export type DashboardOverview = {
 
 function rangeSuffix(options: DateRangeOptions) {
   const query = new URLSearchParams();
+  if (options.site) query.set("site", options.site);
   if (options.startDate) query.set("startDate", options.startDate);
   if (options.endDate) query.set("endDate", options.endDate);
   return query.size ? `?${query.toString()}` : "";
@@ -70,7 +72,7 @@ export async function loadDashboardOverview(options: DateRangeOptions = {}): Pro
       deviceBreakdown: getDashboardDeviceBreakdown(options),
       topPages: getDashboardTopPages(options),
       topMenus: getTopMenus(6, options),
-      recentSyncRuns: getRecentSyncRuns(),
+      recentSyncRuns: getRecentSyncRuns(6, options.site),
     };
   }
   const payload = await cloudflareRead<CloudflareEnvelope & DashboardOverview>(`/analytics/overview${rangeSuffix(options)}`, { errorLabel: "Cloudflare 报表读取" });
@@ -159,7 +161,7 @@ export async function loadGlobalClickReport(options: GlobalClickReportQuery = {}
     const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
     const page = Math.min(requestedPage, totalPages);
     return {
-      paths: getGlobalClickPagePaths(),
+      paths: getGlobalClickPagePaths(options.site),
       rows: filtered.slice((page - 1) * pageSize, page * pageSize),
       pagination: {
         page,
@@ -172,6 +174,7 @@ export async function loadGlobalClickReport(options: GlobalClickReportQuery = {}
   }
   const query = new URLSearchParams();
   if (options.pagePath) query.set("pagePath", options.pagePath);
+  if (options.site) query.set("site", options.site);
   if (options.startDate) query.set("startDate", options.startDate);
   if (options.endDate) query.set("endDate", options.endDate);
   if (options.query) query.set("query", options.query);
@@ -223,10 +226,10 @@ export async function loadLatestAnalysis(): Promise<AnalysisResult | null> {
   return appConfig.userEventApiUrl ? null : getLatestAnalysis();
 }
 
-export async function loadDataHealthReport(): Promise<DataHealthReport> {
+export async function loadDataHealthReport(site: SiteKey): Promise<DataHealthReport> {
   if (!appConfig.userEventApiUrl) {
     throw new Error("数据健康监控需要先连接 Cloudflare 数据源。");
   }
-  const payload = await cloudflareRead<CloudflareEnvelope & { report: DataHealthReport }>("/analytics/health", { errorLabel: "数据健康读取", fresh: true });
+  const payload = await cloudflareRead<CloudflareEnvelope & { report: DataHealthReport }>(`/analytics/health?site=${site}`, { errorLabel: "数据健康读取", fresh: true });
   return payload.report;
 }

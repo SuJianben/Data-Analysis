@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     }
     const payload = userEventPayloadSchema.parse(JSON.parse(rawBody));
     const events = (payload.events || (payload.event ? [payload.event] : [])) as UserEventInput[];
-    const result = await ingestUserEvents(payload.source, events);
+    const result = await ingestUserEvents(payload.source, events, payload.siteKey);
     return NextResponse.json({ ok: true, ...result }, { headers: corsHeaders(origin.origin) });
   } catch (error) {
     if (error instanceof z.ZodError) {

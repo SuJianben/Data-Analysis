@@ -1,3 +1,5 @@
+import type { SiteKey } from "@/config/sites";
+
 export type MenuMetricInput = {
   date: string;
   deviceCategory?: string;
@@ -64,6 +66,7 @@ export type UserEventInput = {
 };
 
 export type DataImportPayload = {
+  siteKey?: SiteKey;
   source: string;
   period: { start: string; end: string };
   menuMetrics?: MenuMetricInput[];
@@ -87,6 +90,7 @@ export type DashboardSummary = {
 export type DateRangeOptions = {
   startDate?: string;
   endDate?: string;
+  site?: SiteKey;
 };
 
 export type DataHealthStatus = "healthy" | "attention" | "critical";

@@ -69,6 +69,7 @@ const userEventSchema = z.object({
 });
 
 const importSchema = z.object({
+  siteKey: z.enum(["tkf", "tms"]).default("tkf"),
   source: z.string().min(1),
   period: z.object({ start: z.string().min(8), end: z.string().min(8) }),
   menuMetrics: z.array(menuMetricSchema).optional(),

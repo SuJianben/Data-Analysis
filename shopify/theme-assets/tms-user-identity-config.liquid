@@ -1,0 +1,10 @@
+{% comment %} TMS Signal privacy-aware pseudonymous identity configuration. {% endcomment %}
+<script>
+  window.TMS_SIGNAL_IDENTITY_CONFIG = {
+    endpoint: "https://tkf-signal-user-events.trustmereview.workers.dev/v1/events",
+    siteKey: "tms",
+    source: "shopify:tms",
+    customerIdHash: {% if customer %}{{ customer.id | append: '' | hmac_sha256: '0d5ece7928f9678c841617b594e485f1d66537c3c1384bfbb688e55801021bed' | json }}{% else %}""{% endif %}
+  };
+</script>
+<script src="{{ 'tms-user-identity.js' | asset_url }}" defer="defer"></script>

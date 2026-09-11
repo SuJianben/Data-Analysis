@@ -2,18 +2,24 @@ import { UserTable } from "@/components/users/user-table";
 import { PageTrendDashboard } from "@/components/data-chart/page-trend-dashboard";
 import { UserDistributionScatter } from "@/components/users/user-distribution-scatter";
 import { loadUserDeviceBreakdown, loadUserSummaries, loadUserTrend } from "@/services/connectors/user-events";
-import { dateRangeQuery, resolveDateRange, type DateRangeParams } from "@/features/date-range/date-range";
+import { resolveDateRange, type DateRangeParams } from "@/features/date-range/date-range";
+import { resolveSite, siteRangeQuery } from "@/features/site-selection/site-selection";
+import { sites } from "@/config/sites";
 
 export default async function UsersPage({ searchParams }: { searchParams: Promise<DateRangeParams> }) {
-  const range = resolveDateRange(await searchParams);
-  const rangeQuery = dateRangeQuery(range);
-  const [rows, trend, devices] = await Promise.all([loadUserSummaries(500, range), loadUserTrend(range), loadUserDeviceBreakdown(range)]);
+  const params = await searchParams;
+  const range = resolveDateRange(params);
+  const site = resolveSite(params);
+  const selectedSite = sites[site];
+  const query = { ...range, site };
+  const rangeQuery = siteRangeQuery(site, range);
+  const [rows, trend, devices] = await Promise.all([loadUserSummaries(500, query), loadUserTrend(query), loadUserDeviceBreakdown(query)]);
   const totalEvents = trend.reduce((sum, point) => sum + Number(point.events || 0), 0);
   const totalPurchases = trend.reduce((sum, point) => sum + Number(point.purchases || 0), 0);
   return (
     <div className="page page-enter">
       <header className="page-heading compact-heading">
-        <div><span className="section-number">04 / USERS</span><h1>用户行为</h1><p>分别查看匿名访客与登录客户的页面、按钮和商品互动。</p></div>
+        <div><span className="section-number">04 / USERS · {selectedSite.shortLabel}</span><h1>用户行为</h1><p>分别查看 {selectedSite.label} 匿名访客与登录客户的页面、按钮和商品互动。</p></div>
       </header>
       <PageTrendDashboard
         title="用户活动趋势"

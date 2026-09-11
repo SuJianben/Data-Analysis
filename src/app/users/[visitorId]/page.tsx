@@ -3,7 +3,8 @@ import { UserEventTable } from "@/components/users/user-event-table";
 import { parseUserIdentityKey, userIdentityLabel } from "@/features/users/identity";
 import { loadUserEvents } from "@/services/connectors/user-events";
 import { notFound } from "next/navigation";
-import { dateRangeQuery, resolveDateRange, type DateRangeParams } from "@/features/date-range/date-range";
+import { resolveDateRange, type DateRangeParams } from "@/features/date-range/date-range";
+import { resolveSite, siteRangeQuery } from "@/features/site-selection/site-selection";
 
 export default async function UserDetailPage({
   params,
@@ -13,11 +14,13 @@ export default async function UserDetailPage({
   searchParams: Promise<DateRangeParams>;
 }) {
   const { visitorId } = await params;
-  const range = resolveDateRange(await searchParams);
-  const rangeQuery = dateRangeQuery(range);
+  const queryParams = await searchParams;
+  const range = resolveDateRange(queryParams);
+  const site = resolveSite(queryParams);
+  const rangeQuery = siteRangeQuery(site, range);
   const identity = parseUserIdentityKey(visitorId);
   if (!identity) notFound();
-  const rows = await loadUserEvents(identity.key, 500, range);
+  const rows = await loadUserEvents(identity.key, 500, { ...range, site });
   return (
     <div className="page page-enter">
       <header className="page-heading compact-heading">

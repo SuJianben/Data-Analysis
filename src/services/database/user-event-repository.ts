@@ -1,16 +1,18 @@
 import { db } from "@/services/database/db";
 import type { DateRangeOptions, DeviceStatPoint, UserEventInput, UserEventRow, UserSummaryRow, UserTrendPoint } from "@/types/analytics";
+import type { SiteKey } from "@/config/sites";
 
 const isoNow = () => new Date().toISOString();
 
 const RESOLVED_USER_EVENTS_CTE = `
   WITH visitor_accounts AS (
     SELECT
+      site_key,
       visitor_id,
       COUNT(DISTINCT CASE WHEN customer_id_hash <> '' THEN customer_id_hash END) AS account_count,
       MAX(NULLIF(customer_id_hash, '')) AS account_hash
     FROM user_events
-    GROUP BY visitor_id
+    GROUP BY site_key, visitor_id
   ),
   resolved_user_events AS (
     SELECT
@@ -30,13 +32,13 @@ const RESOLVED_USER_EVENTS_CTE = `
         ELSE user_events.visitor_id
       END AS identity_id
     FROM user_events
-    JOIN visitor_accounts ON visitor_accounts.visitor_id = user_events.visitor_id
+    JOIN visitor_accounts ON visitor_accounts.site_key = user_events.site_key AND visitor_accounts.visitor_id = user_events.visitor_id
   )
 `;
 
-function eventDateFilter(options: DateRangeOptions, extra: string[] = []) {
-  const conditions = [...extra];
-  const values: string[] = [];
+function eventDateFilter(options: DateRangeOptions, extra: string[] = [], extraValues: string[] = []) {
+  const conditions = ["site_key = ?", ...extra];
+  const values: string[] = [options.site || "tkf", ...extraValues];
   if (options.startDate) { conditions.push("occurred_at >= ?"); values.push(`${options.startDate}T00:00:00.000Z`); }
   if (options.endDate) {
     const end = new Date(`${options.endDate}T00:00:00.000Z`);
@@ -47,13 +49,13 @@ function eventDateFilter(options: DateRangeOptions, extra: string[] = []) {
   return { clause: conditions.length ? `WHERE ${conditions.join(" AND ")}` : "", values };
 }
 
-export function saveUserEvents(source: string, rows: UserEventInput[]) {
+export function saveUserEvents(source: string, rows: UserEventInput[], siteKey: SiteKey = "tkf") {
   const statement = db.prepare(`
     INSERT INTO user_events (
       source, event_id, visitor_id, customer_id_hash, session_id, event_name, occurred_at,
       page_path, element_key, element_label, page_section, destination_path, click_target,
-      device_category, metadata_json, received_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      device_category, metadata_json, received_at, site_key
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(source, event_id) DO NOTHING
   `);
   const receivedAt = isoNow();
@@ -77,6 +79,7 @@ export function saveUserEvents(source: string, rows: UserEventInput[]) {
         row.deviceCategory || "unknown",
         JSON.stringify(row.metadata || {}),
         receivedAt,
+        siteKey,
       );
       inserted += result.changes;
     }
@@ -134,7 +137,7 @@ export function getUserDeviceBreakdown(options: DateRangeOptions = {}): DeviceSt
 }
 
 export function getUserEvents(identityKey: string, limit = 500, options: DateRangeOptions = {}): UserEventRow[] {
-  const filter = eventDateFilter(options, ["identity_key = ?"]);
+  const filter = eventDateFilter(options, ["identity_key = ?"], [identityKey]);
   const rows = db.prepare(`${RESOLVED_USER_EVENTS_CTE}
     SELECT
       event_id AS eventId,
@@ -156,7 +159,7 @@ export function getUserEvents(identityKey: string, limit = 500, options: DateRan
     ${filter.clause}
     ORDER BY occurred_at DESC
     LIMIT ?
-  `).all(identityKey, ...filter.values, limit) as (Omit<UserEventRow, "metadata"> & { metadataJson: string })[];
+  `).all(...filter.values, limit) as (Omit<UserEventRow, "metadata"> & { metadataJson: string })[];
   return rows.map((row) => ({
     ...row,
     metadata: JSON.parse(row.metadataJson || "{}") as Record<string, unknown>,

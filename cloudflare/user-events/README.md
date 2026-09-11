@@ -1,6 +1,6 @@
 # TKF Signal User Events Worker
 
-该子项目负责保存 TKF 的 GA4 汇总报表与脱敏用户行为。D1 不保存姓名、邮箱、电话或 Shopify 原始客户 ID。
+该子项目负责按站点保存 TKF、TMS 的 GA4 汇总报表与脱敏用户行为。D1 不保存姓名、邮箱、电话或 Shopify 原始客户 ID。
 
 ## 接口
 
@@ -15,7 +15,7 @@
 - `GET /v1/analytics/dataset`：读取 AI 分析使用的数据集。
 - `GET /v1/analytics/health`：检查最近同步、7天数据连续性、关键字段质量和数据量波动。
 
-报表和用户行为读取接口支持 `startDate=YYYY-MM-DD&endDate=YYYY-MM-DD`。日期筛选在 D1 查询层执行，概览、表格、用户行为和 AI 使用同一统计范围。健康检查固定使用最近7个完整自然日，避免当天尚未完整的数据触发误报。
+报表和用户行为读取接口支持 `site=tkf|tms&startDate=YYYY-MM-DD&endDate=YYYY-MM-DD`。未传 `site` 时兼容为 `tkf`。站点和日期筛选都在 D1 查询层执行，概览、表格、用户行为和 AI 使用同一统计范围，两个站点的数据不会互相混入。健康检查固定使用所选站点最近7个完整自然日，避免当天尚未完整的数据触发误报。
 
 ## 本机开发
 

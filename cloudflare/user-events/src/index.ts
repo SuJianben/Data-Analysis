@@ -17,7 +17,7 @@ async function ingest(request: Request, env: Env) {
   }
   try {
     const payload = parseUserEventPayload(JSON.parse(body));
-    const inserted = await saveEvents(env, payload.source, payload.events);
+    const inserted = await saveEvents(env, payload.siteKey, payload.source, payload.events);
     return json(request, env, { ok: true, received: payload.events.length, inserted });
   } catch (error) {
     return json(request, env, {

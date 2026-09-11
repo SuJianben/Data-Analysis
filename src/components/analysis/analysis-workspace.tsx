@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { AnalysisResult } from "@/types/analytics";
 import type { DateRange } from "@/features/date-range/date-range";
 import { formatDateTime } from "@/utils/format";
+import type { SiteKey } from "@/config/sites";
 
 function displayText(value: unknown): string {
   if (typeof value === "string") return value;
@@ -17,7 +18,7 @@ function displayText(value: unknown): string {
   return "—";
 }
 
-export function AnalysisWorkspace({ initialResult, dateRange }: { initialResult: AnalysisResult | null; dateRange: DateRange }) {
+export function AnalysisWorkspace({ initialResult, dateRange, site }: { initialResult: AnalysisResult | null; dateRange: DateRange; site: SiteKey }) {
   const [result, setResult] = useState(initialResult);
   const [question, setQuestion] = useState("分析菜单表现，并指出最值得优先验证的三个问题。");
   const [loading, setLoading] = useState(false);
@@ -30,7 +31,7 @@ export function AnalysisWorkspace({ initialResult, dateRange }: { initialResult:
       const response = await fetch("/api/analysis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, ...dateRange }),
+        body: JSON.stringify({ question, ...dateRange, site }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "分析失败");

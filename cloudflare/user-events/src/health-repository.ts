@@ -1,4 +1,4 @@
-import type { Env } from "./types";
+import type { Env, SiteKey } from "./types";
 import type {
   DataHealthCheck,
   DataHealthDailyPoint,
@@ -130,43 +130,43 @@ function buildChecks(
   ];
 }
 
-export async function getDataHealthReport(env: Env, now = new Date()): Promise<DataHealthReport> {
+export async function getDataHealthReport(env: Env, site: SiteKey = "tkf", now = new Date()): Promise<DataHealthReport> {
   const endDate = shiftDate(shanghaiDate(now), -1);
   const startDate = shiftDate(endDate, -6);
   const [latestSyncResult, menuResult, globalResult, siteResult, userResult, menuQualityResult, globalQualityResult, userQualityResult] = await env.DB.batch([
     env.DB.prepare(`
       SELECT imported_at AS importedAt, period_start AS periodStart, period_end AS periodEnd, row_count AS rowCount
-      FROM analytics_sync_runs WHERE status = 'success' ORDER BY imported_at DESC LIMIT 1
-    `),
-    env.DB.prepare("SELECT event_date AS date, SUM(click_count) AS value FROM menu_click_metrics WHERE event_date BETWEEN ? AND ? GROUP BY event_date").bind(startDate, endDate),
-    env.DB.prepare("SELECT event_date AS date, SUM(click_count) AS value FROM global_click_metrics WHERE event_date BETWEEN ? AND ? GROUP BY event_date").bind(startDate, endDate),
-    env.DB.prepare("SELECT event_date AS date, SUM(event_count) AS value FROM site_metrics WHERE event_date BETWEEN ? AND ? GROUP BY event_date").bind(startDate, endDate),
-    env.DB.prepare("SELECT SUBSTR(occurred_at, 1, 10) AS date, COUNT(*) AS value FROM user_events WHERE occurred_at >= ? AND occurred_at < ? GROUP BY SUBSTR(occurred_at, 1, 10)").bind(`${startDate}T00:00:00.000Z`, `${shiftDate(endDate, 1)}T00:00:00.000Z`),
+      FROM analytics_sync_runs WHERE site_key = ? AND status = 'success' ORDER BY imported_at DESC LIMIT 1
+    `).bind(site),
+    env.DB.prepare("SELECT event_date AS date, SUM(click_count) AS value FROM menu_click_metrics WHERE site_key = ? AND event_date BETWEEN ? AND ? GROUP BY event_date").bind(site, startDate, endDate),
+    env.DB.prepare("SELECT event_date AS date, SUM(click_count) AS value FROM global_click_metrics WHERE site_key = ? AND event_date BETWEEN ? AND ? GROUP BY event_date").bind(site, startDate, endDate),
+    env.DB.prepare("SELECT event_date AS date, SUM(event_count) AS value FROM site_metrics WHERE site_key = ? AND event_date BETWEEN ? AND ? GROUP BY event_date").bind(site, startDate, endDate),
+    env.DB.prepare("SELECT SUBSTR(occurred_at, 1, 10) AS date, COUNT(*) AS value FROM user_events WHERE site_key = ? AND occurred_at >= ? AND occurred_at < ? GROUP BY SUBSTR(occurred_at, 1, 10)").bind(site, `${startDate}T00:00:00.000Z`, `${shiftDate(endDate, 1)}T00:00:00.000Z`),
     env.DB.prepare(`
       SELECT COALESCE(SUM(click_count), 0) AS total,
         COALESCE(SUM(CASE WHEN TRIM(menu_name) = '' OR LOWER(TRIM(menu_name)) IN ('(not set)', 'not set', '(未命名菜单)', '未命名菜单') THEN click_count ELSE 0 END), 0) AS invalid
-      FROM menu_click_metrics WHERE event_date BETWEEN ? AND ?
-    `).bind(startDate, endDate),
+      FROM menu_click_metrics WHERE site_key = ? AND event_date BETWEEN ? AND ?
+    `).bind(site, startDate, endDate),
     env.DB.prepare(`
       SELECT COALESCE(SUM(click_count), 0) AS total,
         COALESCE(SUM(CASE WHEN TRIM(element_key) = '' OR TRIM(element_label) = '' OR LOWER(TRIM(element_label)) IN ('button', 'toggle', 'link', 'minus', 'next') THEN click_count ELSE 0 END), 0) AS invalid
-      FROM global_click_metrics WHERE event_date BETWEEN ? AND ?
-    `).bind(startDate, endDate),
+      FROM global_click_metrics WHERE site_key = ? AND event_date BETWEEN ? AND ?
+    `).bind(site, startDate, endDate),
     env.DB.prepare(`
       SELECT COUNT(*) AS total,
         COALESCE(SUM(CASE WHEN TRIM(visitor_id) = '' OR TRIM(event_name) = '' OR TRIM(page_path) = '' THEN 1 ELSE 0 END), 0) AS invalid
-      FROM user_events WHERE occurred_at >= ? AND occurred_at < ?
-    `).bind(`${startDate}T00:00:00.000Z`, `${shiftDate(endDate, 1)}T00:00:00.000Z`),
+      FROM user_events WHERE site_key = ? AND occurred_at >= ? AND occurred_at < ?
+    `).bind(site, `${startDate}T00:00:00.000Z`, `${shiftDate(endDate, 1)}T00:00:00.000Z`),
   ]);
 
   const menu = valueMap(menuResult.results);
   const global = valueMap(globalResult.results);
-  const site = valueMap(siteResult.results);
+  const siteMetrics = valueMap(siteResult.results);
   const users = valueMap(userResult.results);
   const daily = dateList(startDate, endDate).map<DataHealthDailyPoint>((date) => {
     const menuClicks = menu.get(date) || 0;
     const globalClicks = global.get(date) || 0;
-    const siteEvents = site.get(date) || 0;
+    const siteEvents = siteMetrics.get(date) || 0;
     return {
       date,
       menuClicks,

@@ -146,6 +146,28 @@ function createDatabase() {
     CREATE INDEX IF NOT EXISTS idx_user_events_occurred_at
       ON user_events(occurred_at DESC);
   `);
+  const siteScopedTables = [
+    "menu_click_metrics",
+    "site_metrics",
+    "heatmap_click_metrics",
+    "global_click_metrics",
+    "data_snapshots",
+    "sync_runs",
+    "analyses",
+    "user_events",
+  ];
+  for (const table of siteScopedTables) {
+    const columns = database.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+    if (!columns.some((column) => column.name === "site_key")) {
+      database.exec(`ALTER TABLE ${table} ADD COLUMN site_key TEXT NOT NULL DEFAULT 'tkf'`);
+    }
+  }
+  database.exec(`
+    CREATE INDEX IF NOT EXISTS idx_menu_metrics_site_date ON menu_click_metrics(site_key, event_date);
+    CREATE INDEX IF NOT EXISTS idx_site_metrics_site_date ON site_metrics(site_key, event_date, event_name);
+    CREATE INDEX IF NOT EXISTS idx_global_click_metrics_site_date ON global_click_metrics(site_key, event_date, page_path);
+    CREATE INDEX IF NOT EXISTS idx_user_events_site_time ON user_events(site_key, occurred_at DESC);
+  `);
   return database;
 }
 

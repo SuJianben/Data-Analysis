@@ -5,19 +5,24 @@ import { MetricStrip } from "@/components/dashboard/metric-strip";
 import { SyncList } from "@/components/dashboard/sync-list";
 import { TrendChart } from "@/components/dashboard/trend-chart";
 import { loadDashboardOverview } from "@/services/connectors/analytics";
-import { dateRangeQuery, resolveDateRange, type DateRangeParams } from "@/features/date-range/date-range";
+import { resolveDateRange, type DateRangeParams } from "@/features/date-range/date-range";
 import { formatNumber } from "@/utils/format";
+import { resolveSite, siteRangeQuery } from "@/features/site-selection/site-selection";
+import { sites } from "@/config/sites";
 
 export default async function OverviewPage({ searchParams }: { searchParams: Promise<DateRangeParams> }) {
-  const range = resolveDateRange(await searchParams);
-  const rangeQuery = dateRangeQuery(range);
-  const { summary, trend, trafficTrend, funnel, deviceBreakdown, topPages, topMenus, recentSyncRuns: runs } = await loadDashboardOverview(range);
+  const params = await searchParams;
+  const range = resolveDateRange(params);
+  const site = resolveSite(params);
+  const selectedSite = sites[site];
+  const rangeQuery = siteRangeQuery(site, range);
+  const { summary, trend, trafficTrend, funnel, deviceBreakdown, topPages, topMenus, recentSyncRuns: runs } = await loadDashboardOverview({ ...range, site });
   const hasData = summary.clicks > 0;
   const topMax = Math.max(...topMenus.map((menu) => menu.clickCount), 1);
   return (
     <div className="page page-enter">
       <header className="page-heading">
-        <div><span className="section-number">01 / OVERVIEW</span><h1>站点数据概览</h1><p>统一查看菜单互动、流量与销售指标。</p></div>
+        <div><span className="section-number">01 / OVERVIEW · {selectedSite.shortLabel}</span><h1>站点数据概览</h1><p>统一查看 {selectedSite.label} 的菜单互动、流量与销售指标。</p></div>
         <div className="freshness"><span className="status-dot" /><div><small>数据状态</small><strong>{hasData ? "已有可分析数据" : "等待首次导入"}</strong></div></div>
       </header>
       {!hasData ? <DemoLoader /> : (

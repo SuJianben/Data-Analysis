@@ -5,6 +5,8 @@ export interface Env {
   SERVER_INGEST_KEY: string;
 }
 
+export type SiteKey = "tkf" | "tms";
+
 export type UserEventInput = {
   eventId: string;
   visitorId: string;
@@ -23,6 +25,7 @@ export type UserEventInput = {
 };
 
 export type UserEventPayload = {
+  siteKey: SiteKey;
   source: string;
   events: UserEventInput[];
 };

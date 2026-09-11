@@ -93,7 +93,10 @@ function parseArray<T>(value: unknown, parser: (item: unknown) => T) {
 export function parseAnalyticsImportPayload(value: unknown): AnalyticsImportPayload {
   if (!isRecord(value)) throw new Error("报表导入内容格式不正确。");
   if (!isRecord(value.period)) throw new Error("同步日期范围格式不正确。");
+  const siteKey = value.siteKey === undefined ? "tkf" : requiredString(value.siteKey, "siteKey", 3);
+  if (siteKey !== "tkf" && siteKey !== "tms") throw new Error("siteKey 只支持 tkf 或 tms。");
   const payload: AnalyticsImportPayload = {
+    siteKey,
     source: requiredString(value.source, "source", 80),
     period: {
       start: dateString(value.period.start, "period.start"),

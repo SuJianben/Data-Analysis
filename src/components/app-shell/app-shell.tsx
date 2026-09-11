@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { DateRangeFilter } from "@/components/app-shell/date-range-filter";
 import { NavLinks } from "@/components/app-shell/nav-links";
+import { SiteBreadcrumb } from "@/components/app-shell/site-breadcrumb";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const usesCloudflare = Boolean(process.env.USER_EVENT_API_URL?.trim());
@@ -25,7 +26,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="app-content">
         <header className="topbar">
           <div>
-            <span className="eyebrow">TURKFORMA / ANALYTICS</span>
+            <Suspense fallback={<span className="eyebrow">SITE / ANALYTICS</span>}><SiteBreadcrumb /></Suspense>
           </div>
           <Suspense fallback={<span className="date-range-loading">加载时间范围…</span>}>
             <DateRangeFilter />

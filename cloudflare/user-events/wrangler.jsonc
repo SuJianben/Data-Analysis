@@ -9,7 +9,7 @@
     "head_sampling_rate": 0.1
   },
   "vars": {
-    "ALLOWED_ORIGINS": "https://turkforma.com,https://www.turkforma.com"
+    "ALLOWED_ORIGINS": "https://turkforma.com,https://www.turkforma.com,https://mezkiraly.com,https://www.mezkiraly.com"
   },
   "d1_databases": [
     {

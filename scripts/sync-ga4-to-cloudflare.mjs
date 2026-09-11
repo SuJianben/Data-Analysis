@@ -83,6 +83,8 @@ function validateDate(value, optionName) {
 }
 
 async function main() {
+  const siteKey = (option("--site") || process.env.ANALYTICS_SITE || "tkf").toLowerCase();
+  if (!new Set(["tkf", "tms"]).has(siteKey)) throw new Error("--site 只支持 tkf 或 tms");
   const fallbackPeriod = defaultPeriod();
   const period = {
     startDate: option("--start-date") || fallbackPeriod.startDate,
@@ -95,19 +97,23 @@ async function main() {
   const localSyncUrl = process.env.LOCAL_SYNC_URL?.trim() || "http://localhost:3000/api/sync/ga4";
   const importUrl = requireEnv("TKF_ANALYTICS_IMPORT_URL", "TKF_IMPORT_URL");
   const importKey = requireEnv("TKF_ANALYTICS_IMPORT_KEY", "TKF_IMPORT_KEY");
-  const propertyId = process.env.GA4_PROPERTY_ID?.trim() || "546810508";
+  const sitePropertyName = `${siteKey.toUpperCase()}_GA4_PROPERTY_ID`;
+  const propertyId = process.env[sitePropertyName]?.trim()
+    || (siteKey === "tkf" ? process.env.GA4_PROPERTY_ID?.trim() || "546810508" : "");
+  if (!propertyId) throw new Error(`缺少环境变量 ${sitePropertyName}`);
 
-  console.log(`[GA4] 同步日期：${period.startDate} 至 ${period.endDate}`);
+  console.log(`[GA4] 站点：${siteKey.toUpperCase()}，同步日期：${period.startDate} 至 ${period.endDate}`);
   console.log(`[GA4] 请求本机同步接口：${localSyncUrl}`);
 
   const localResult = await fetchJson(localSyncUrl, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ propertyId, startDate: period.startDate, endDate: period.endDate }),
+    body: JSON.stringify({ siteKey, propertyId, startDate: period.startDate, endDate: period.endDate }),
   });
 
   const payload = {
-    source: "ga4",
+    siteKey,
+    source: `ga4:${siteKey}`,
     period: { start: period.startDate, end: period.endDate },
     menuMetrics: localResult.menuMetrics || [],
     siteMetrics: localResult.siteMetrics || [],
