@@ -28,6 +28,7 @@
 - TMS Customer Pixel 保留原有 GA4 浏览、加购、结账和购买事件，并接收主题发布的 `tms:` 点击事件。
 - TMS 顶部导航点击同时发布 `header_navigation_click`，字段名称与 TKF 菜单报表保持一致。
 - TMS 完成购买后会把脱敏访客、客户哈希、订单哈希、金额、币种和商品数量写入 TMS 用户链。
+- TMS GA4 属性新增 10 个事件范围自定义维度：`menu_name`、`menu_key`、`parent_menu_name`、`menu_level`、`menu_action`、`click_target`、`element_key`、`element_label`、`page_section`、`destination_path`。
 
 ## 影响范围
 
@@ -46,11 +47,13 @@
 - 每日同步自动化已更新为依次运行 `sync:tkf`、`sync:tms`，并分别检查两个站点的健康页。
 - 真实逐页检查发现用户身份合并 CTE 漏选 `site_key`；已同时修正本机与 Worker 查询，不再出现用户行为页数据库字段错误。
 - TMS 首次同步后发现概览只用“菜单点击”判断是否有数据；已改为综合判断访问、用户、购买、收入和菜单点击，标准指标不再被空状态遮挡。
+- 已在 GA4 后台核对媒体资源为 `Top Mezek Store`（属性 `553146696`），自定义维度列表显示 10 项，名称、事件参数和事件范围均正确。
+- 创建后重新执行 `sync:tms`，菜单与点击自定义维度已被 GA4 Data API 接受，并成功向 Cloudflare D1 导入 19 行数据（`syncId=4`）。
 - TypeScript、Worker 类型检查、Next.js 生产构建和 Git 空白检查通过。
 
 ## 遗留问题
 
 - 当前测试浏览器未同意分析 Cookie，因此真实 TMS 点击按隐私规则不入库；访客同意后才会采集，与 TKF 行为一致。
-- TMS 属性尚未注册 TKF 同款菜单与点击自定义维度；标准指标可同步，自定义维度报表会给出提示并暂时留空。
+- 新建 GA4 自定义维度的历史数据不会回填；后续新采集事件会按这些维度进入菜单与点击报表。
 - 每日 GA4 自动化已改为依次同步 TKF、TMS，并分别检查两个站点的数据健康状态。
 - 购买归因代码已上线，但仍需下一笔真实 TMS 订单验证最终购买事件。
