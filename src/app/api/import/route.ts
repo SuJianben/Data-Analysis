@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { appConfig } from "@/config/env";
+import { siteKeys } from "@/config/sites";
 import { importDataset } from "@/services/database/repositories";
 
 export const runtime = "nodejs";
@@ -69,7 +70,7 @@ const userEventSchema = z.object({
 });
 
 const importSchema = z.object({
-  siteKey: z.enum(["tkf", "tms"]).default("tkf"),
+  siteKey: z.enum(siteKeys).default("tkf"),
   source: z.string().min(1),
   period: z.object({ start: z.string().min(8), end: z.string().min(8) }),
   menuMetrics: z.array(menuMetricSchema).optional(),

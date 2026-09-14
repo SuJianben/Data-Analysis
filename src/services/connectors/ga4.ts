@@ -2,6 +2,7 @@ import { appConfig } from "@/config/env";
 import type { GlobalClickMetricInput, HeatmapMetricInput, MenuMetricInput, SiteMetricInput } from "@/types/analytics";
 import { resolveGa4AccessToken } from "@/services/connectors/ga4-auth";
 import { isTmsPaginationMenuLabel } from "@/analytics/tms-menu-classification";
+import type { SiteKey } from "@/config/sites";
 
 type Ga4Value = { value?: string };
 type Ga4Row = { dimensionValues?: Ga4Value[]; metricValues?: Ga4Value[] };
@@ -12,7 +13,7 @@ type Ga4Response = {
 };
 
 export type Ga4SyncInput = {
-  siteKey: "tkf" | "tms";
+  siteKey: SiteKey;
   accessToken?: string;
   propertyId?: string;
   startDate: string;

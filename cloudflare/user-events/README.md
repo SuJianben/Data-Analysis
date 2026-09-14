@@ -1,6 +1,6 @@
 # TKF Signal User Events Worker
 
-该子项目负责按站点保存 TKF、TMS 的 GA4 汇总报表与脱敏用户行为。D1 不保存姓名、邮箱、电话或 Shopify 原始客户 ID。
+该子项目负责按站点保存 TKF、TMS、FKK 的 GA4 汇总报表与脱敏用户行为。D1 不保存姓名、邮箱、电话或 Shopify 原始客户 ID。
 
 ## 接口
 
@@ -15,7 +15,7 @@
 - `GET /v1/analytics/dataset`：读取 AI 分析使用的数据集。
 - `GET /v1/analytics/health`：检查最近同步、7天数据连续性、关键字段质量和数据量波动。
 
-报表和用户行为读取接口支持 `site=tkf|tms&startDate=YYYY-MM-DD&endDate=YYYY-MM-DD`。未传 `site` 时兼容为 `tkf`。站点和日期筛选都在 D1 查询层执行，概览、表格、用户行为和 AI 使用同一统计范围，两个站点的数据不会互相混入。健康检查固定使用所选站点最近7个完整自然日，避免当天尚未完整的数据触发误报。
+报表和用户行为读取接口支持 `site=tkf|tms|fkk&startDate=YYYY-MM-DD&endDate=YYYY-MM-DD`。未传 `site` 时兼容为 `tkf`。站点和日期筛选都在 D1 查询层执行，概览、表格、用户行为和 AI 使用同一统计范围，三个站点的数据不会互相混入。健康检查固定使用所选站点最近7个完整自然日，避免当天尚未完整的数据触发误报。
 
 ## 本机开发
 
@@ -32,12 +32,13 @@ npm run dev
 3. 分别执行 `npx wrangler secret put READ_API_KEY` 和 `npx wrangler secret put SERVER_INGEST_KEY`。
 4. 执行 `npm run deploy`。
 
-`npm run deploy` 会从同一份源码依次发布两个站点一致的入口：
+`npm run deploy` 会从同一份源码依次发布三个站点一致的入口：
 
 - TKF：`https://tkf-signal-user-events.trustmereview.workers.dev`
 - TMS：`https://tms-signal-user-events.trustmereview.workers.dev`
+- FKK：`https://fkk-signal-user-events.trustmereview.workers.dev`
 
-两个 Worker 绑定同一个 D1，数据仍由载荷中的 `siteKey` 隔离。健康检查会返回与域名一致的服务名，方便从日志和监控中辨认 TKF 与 TMS。单独发布时可使用 `npm run deploy:tkf` 或 `npm run deploy:tms`，禁止复制两套 Worker 源码分别维护。
+三个 Worker 绑定同一个 D1，数据仍由载荷中的 `siteKey` 隔离。健康检查会返回与域名一致的服务名，方便从日志和监控中辨认站点。单独发布时可使用 `npm run deploy:tkf`、`npm run deploy:tms` 或 `npm run deploy:fkk`，禁止复制三套 Worker 源码分别维护。
 
 密钥只保存在 Cloudflare 和调用方的环境变量中，禁止写入代码、日志或 Git 仓库。`ALLOWED_ORIGINS` 只填写正式店铺 HTTPS 域名。
 

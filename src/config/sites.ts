@@ -11,10 +11,17 @@ export const sites = {
     label: "Top Mezek Store",
     domain: "mezkiraly.com",
   },
+  fkk: {
+    key: "fkk",
+    shortLabel: "FKK",
+    label: "Football Kit UK",
+    domain: "footballkituk.com",
+  },
 } as const;
 
 export type SiteKey = keyof typeof sites;
 
+export const siteKeys = Object.keys(sites) as [SiteKey, ...SiteKey[]];
 export const siteList = Object.values(sites);
 export const defaultSite: SiteKey = "tkf";
 

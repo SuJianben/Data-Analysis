@@ -1,3 +1,5 @@
+import type { SiteKey } from "./sites";
+
 export interface Env {
   DB: D1Database;
   ALLOWED_ORIGINS: string;
@@ -6,7 +8,7 @@ export interface Env {
   SERVER_INGEST_KEY: string;
 }
 
-export type SiteKey = "tkf" | "tms";
+export type { SiteKey } from "./sites";
 
 export type UserEventInput = {
   eventId: string;

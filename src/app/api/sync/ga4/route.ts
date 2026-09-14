@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { fetchGa4Data } from "@/services/connectors/ga4";
+import { siteKeys } from "@/config/sites";
 import { finishSync, saveGlobalClickMetrics, saveHeatmapMetrics, saveMenuMetrics, saveSiteMetrics, saveSnapshot, startSync } from "@/services/database/repositories";
 
 export const runtime = "nodejs";
 
 const schema = z.object({
-  siteKey: z.enum(["tkf", "tms"]).default("tkf"),
+  siteKey: z.enum(siteKeys).default("tkf"),
   accessToken: z.string().optional(),
   propertyId: z.string().min(1),
   startDate: z.string().min(8),

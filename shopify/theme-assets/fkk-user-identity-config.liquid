@@ -1,0 +1,10 @@
+{% comment %} FKK Signal privacy-aware pseudonymous identity configuration. {% endcomment %}
+<script>
+  window.FKK_SIGNAL_IDENTITY_CONFIG = {
+    endpoint: "https://fkk-signal-user-events.trustmereview.workers.dev/v1/events",
+    siteKey: "fkk",
+    source: "shopify:fkk",
+    customerIdHash: {% if customer %}{{ customer.id | append: '' | hmac_sha256: '74b87df0dfd9e96c13b3e4efec145933883d1a394f306982165a0244c658f423' | json }}{% else %}""{% endif %}
+  };
+</script>
+<script src="{{ 'fkk-user-identity.js' | asset_url }}" defer="defer"></script>

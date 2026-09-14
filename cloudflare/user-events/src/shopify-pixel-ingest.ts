@@ -7,8 +7,10 @@ const MAX_EVENT_AGE_MS = 7 * 24 * 60 * 60 * 1_000;
 const MAX_FUTURE_SKEW_MS = 10 * 60 * 1_000;
 
 function sourceMatchesSite(payload: UserEventPayload) {
-  if (payload.siteKey === "tms") return payload.source === "shopify_pixel:tms";
-  return payload.source === "shopify_pixel" || payload.source === "shopify_pixel:tkf";
+  if (payload.siteKey === "tkf") {
+    return payload.source === "shopify_pixel" || payload.source === "shopify_pixel:tkf";
+  }
+  return payload.source === `shopify_pixel:${payload.siteKey}`;
 }
 
 function isFiniteNumberInRange(value: unknown, minimum: number, maximum: number) {

@@ -5,11 +5,14 @@ import type { Env } from "./types";
 import { parseIdentityKey, parseUserEventPayload } from "./validation";
 import { parseDateRange } from "./date-range";
 import { isOpaqueShopifyPurchaseRequest } from "./shopify-pixel-ingest";
+import { browserPayloadMatchesSite } from "./sites";
 
 const MAX_BODY_BYTES = 256_000;
 
 async function ingest(request: Request, env: Env) {
-  const hasStandardAccess = isBrowserOriginAllowed(request, env) || hasServerIngestAccess(request, env);
+  const hasServerAccess = hasServerIngestAccess(request, env);
+  const hasBrowserAccess = isBrowserOriginAllowed(request, env);
+  const hasStandardAccess = hasBrowserAccess || hasServerAccess;
   if (!hasStandardAccess && request.headers.get("Origin") !== "null") {
     return json(request, env, { ok: false, error: "该来源不允许提交用户事件。" }, 403);
   }
@@ -19,6 +22,9 @@ async function ingest(request: Request, env: Env) {
   }
   try {
     const payload = parseUserEventPayload(JSON.parse(body));
+    if (hasBrowserAccess && !hasServerAccess && !browserPayloadMatchesSite(env.SERVICE_NAME, request.headers.get("Origin"), payload.siteKey)) {
+      return json(request, env, { ok: false, error: "来源域名、站点与接收入口不匹配。" }, 403);
+    }
     if (!hasStandardAccess && !isOpaqueShopifyPurchaseRequest(request, payload)) {
       return json(request, env, { ok: false, error: "该来源只允许提交 Shopify 完成购买事件。" }, 403);
     }

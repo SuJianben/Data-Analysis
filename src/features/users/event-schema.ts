@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { siteKeys } from "@/config/sites";
 
 export const userEventSchema = z.object({
   eventId: z.string().min(8).max(160),
@@ -18,7 +19,7 @@ export const userEventSchema = z.object({
 });
 
 export const userEventPayloadSchema = z.object({
-  siteKey: z.enum(["tkf", "tms"]).default("tkf"),
+  siteKey: z.enum(siteKeys).default("tkf"),
   source: z.string().min(1).max(80).default("storefront"),
   event: userEventSchema.optional(),
   events: z.array(userEventSchema).max(50).optional(),

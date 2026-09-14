@@ -14,6 +14,7 @@ import { parseDateRange } from "./date-range";
 import { parseGlobalClickQuery } from "./global-click-query";
 import { getDataHealthReport } from "./health-repository";
 import type { Env } from "./types";
+import { isSiteKey } from "./sites";
 
 const MAX_BODY_BYTES = 1_500_000;
 
@@ -52,7 +53,7 @@ export async function handleAnalyticsRequest(request: Request, env: Env, path: s
   const url = new URL(request.url);
   if (path === "/v1/analytics/health") {
     const site = url.searchParams.get("site") || "tkf";
-    if (site !== "tkf" && site !== "tms") return json(request, env, { ok: false, error: "站点参数不正确。" }, 400);
+    if (!isSiteKey(site)) return json(request, env, { ok: false, error: "站点参数不正确。" }, 400);
     return json(request, env, { ok: true, report: await getDataHealthReport(env, site) });
   }
   let range;

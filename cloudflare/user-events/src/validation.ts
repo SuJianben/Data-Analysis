@@ -1,4 +1,5 @@
 import type { UserEventInput, UserEventPayload } from "./types";
+import { isSiteKey } from "./sites";
 
 const IDENTIFIER = /^[a-zA-Z0-9._:-]+$/;
 const CUSTOMER_HASH = /^[a-f0-9]{64}$/i;
@@ -62,7 +63,7 @@ export function parseUserEventPayload(value: unknown): UserEventPayload {
   const rawEvents = Array.isArray(value.events) ? value.events : value.event ? [value.event] : [];
   if (!rawEvents.length || rawEvents.length > 50) throw new Error("每次需要提交 1 至 50 个事件。");
   const siteKey = value.siteKey === undefined ? "tkf" : requiredString(value.siteKey, "siteKey", 3, 3);
-  if (siteKey !== "tkf" && siteKey !== "tms") throw new Error("siteKey 只支持 tkf 或 tms。");
+  if (!isSiteKey(siteKey)) throw new Error("siteKey 只支持 tkf、tms 或 fkk。");
   return { siteKey, source, events: rawEvents.map(parseEvent) };
 }
 

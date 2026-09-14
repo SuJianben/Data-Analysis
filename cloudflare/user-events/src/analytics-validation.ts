@@ -4,6 +4,7 @@ import type {
   MenuMetricInput,
   SiteMetricInput,
 } from "./analytics-types";
+import { isSiteKey } from "./sites";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_IMPORT_ROWS = 900;
@@ -94,7 +95,7 @@ export function parseAnalyticsImportPayload(value: unknown): AnalyticsImportPayl
   if (!isRecord(value)) throw new Error("报表导入内容格式不正确。");
   if (!isRecord(value.period)) throw new Error("同步日期范围格式不正确。");
   const siteKey = value.siteKey === undefined ? "tkf" : requiredString(value.siteKey, "siteKey", 3);
-  if (siteKey !== "tkf" && siteKey !== "tms") throw new Error("siteKey 只支持 tkf 或 tms。");
+  if (!isSiteKey(siteKey)) throw new Error("siteKey 只支持 tkf、tms 或 fkk。");
   const payload: AnalyticsImportPayload = {
     siteKey,
     source: requiredString(value.source, "source", 80),
