@@ -20,6 +20,7 @@
 - `shopify/theme-assets/fkk-global-click.js`：采集 FKK 可操作元素点击，同时发送 GA4 菜单/全局点击事件。
 - `shopify/customer-pixels/fkk-ga4-customer-pixel.js`：准备 FKK 的加入购物车、开始结账、购买及购买归因代码。
 - `shopify/backups/fkk-theme-2026-09-14-before-signal.liquid`：正式主题接入前备份。
+- `docs/handoffs/FKK-Customer-Pixel-Codex操作交接.md`：提供可直接转交给站点同事及其 Codex 的自包含操作文档，内嵌完整 Pixel 代码、执行边界与验收标准。
 - 新增 `npm run sync:fkk` 与 Worker 的 `npm run deploy:fkk` 命令。
 
 ## 调整内容
