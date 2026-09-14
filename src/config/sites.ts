@@ -4,18 +4,28 @@ export const sites = {
     shortLabel: "TKF",
     label: "TurkForma",
     domain: "turkforma.com",
+    platform: "shopify",
   },
   tms: {
     key: "tms",
     shortLabel: "TMS",
     label: "Top Mezek Store",
     domain: "mezkiraly.com",
+    platform: "shopify",
   },
   fkk: {
     key: "fkk",
     shortLabel: "FKK",
     label: "Football Kit UK",
     domain: "footballkituk.com",
+    platform: "shopify",
+  },
+  blk: {
+    key: "blk",
+    shortLabel: "BLK",
+    label: "Belgiumkits",
+    domain: "belgiumkits.com",
+    platform: "shopline",
   },
 } as const;
 

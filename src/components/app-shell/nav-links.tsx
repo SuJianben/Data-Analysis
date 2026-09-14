@@ -69,8 +69,9 @@ function NavGroups({ pathname, queryString, currentSite }: { pathname: string; q
                   key={site.key}
                   tabIndex={expanded ? undefined : -1}
                 >
-                  <span>{site.shortLabel}</span>
-                  <small>{site.label}</small>
+                  <span className="nav-site-short">{site.shortLabel}</span>
+                  <small className="nav-site-name">{site.label}</small>
+                  {site.platform === "shopline" ? <span className="nav-platform">SHOPLINE</span> : null}
                 </Link>
               );
             })}

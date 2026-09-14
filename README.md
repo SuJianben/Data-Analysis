@@ -1,6 +1,6 @@
 # 多站点数据分析
 
-这是一个支持 TKF、TMS、FKK 站点隔离的数据同步、菜单报表、用户行为和 AI 分析工作台。线上数据保存到 Cloudflare D1，本机仍可使用 SQLite 进行开发。长期凭据只保存在本机 `.env.local`，临时令牌只参与当前请求，两者都不会写入数据库。
+这是一个支持 TKF、TMS、FKK 和 BLK 站点隔离的数据同步、菜单报表、用户行为和 AI 分析工作台。TKF、TMS、FKK 来自 Shopify，BLK 来自 SHOPLINE。线上数据保存到 Cloudflare D1，本机仍可使用 SQLite 进行开发。长期凭据只保存在本机 `.env.local`，临时令牌只参与当前请求，两者都不会写入数据库。
 
 ## 启动
 
@@ -23,7 +23,7 @@ npm start
 复制 `.env.example` 为 `.env.local`，按需填写：
 
 - `GA4_PROPERTY_ID`：TKF 的 GA4 属性 ID（兼容旧配置）
-- `TMS_GA4_PROPERTY_ID`、`FKK_GA4_PROPERTY_ID`：对应站点的 GA4 属性 ID
+- `TMS_GA4_PROPERTY_ID`、`FKK_GA4_PROPERTY_ID`、`BLK_GA4_PROPERTY_ID`：对应站点的 GA4 属性 ID
 - `GA4_ACCESS_TOKEN`：可选；仅作为 OAuth Refresh Token 以外的临时认证方式
 - `GOOGLE_OAUTH_CLIENT_ID`、`GOOGLE_OAUTH_CLIENT_SECRET`、`GOOGLE_OAUTH_REFRESH_TOKEN`：GA4 本机 OAuth 长期认证
 - `GOOGLE_APPLICATION_CREDENTIALS`：GA4 服务账号 JSON 的本机路径，作为备用认证方式
@@ -103,6 +103,13 @@ npm start
 
 `scripts/sync-ga4-to-cloudflare.mjs` 会先调用本机 `/api/sync/ga4`（由本机 OAuth 凭证访问 Google），再把菜单、站点和全局点击汇总发送到 Worker `/v1/analytics/import`。
 
+新站点接入时，可以先预览缺少的事件级自定义维度，再由拥有 `analytics.edit` 权限的 OAuth 凭证一次性补齐：
+
+```bash
+npm run ga4:dimensions -- --site blk
+npm run ga4:dimensions -- --site blk --apply
+```
+
 在本机 `.env.local` 或系统环境变量中配置：
 
 ```text
@@ -111,15 +118,16 @@ TKF_ANALYTICS_IMPORT_KEY=与 Worker SERVER_INGEST_KEY 相同的密钥
 LOCAL_SYNC_URL=http://localhost:3000/api/sync/ga4
 ```
 
-分别同步 TKF、TMS 或 FKK 最近 3 天：
+分别同步 TKF、TMS、FKK 或 BLK 最近 3 天：
 
 ```bash
 npm run sync:tkf
 npm run sync:tms
 npm run sync:fkk
+npm run sync:blk
 ```
 
-TKF 使用 `TKF_GA4_PROPERTY_ID`，TMS 使用 `TMS_GA4_PROPERTY_ID`，FKK 使用 `FKK_GA4_PROPERTY_ID`。这里必须填写 GA4 的纯数字属性 ID，不能填写以 `G-` 开头的衡量 ID。兼容旧配置时，TKF 仍可读取 `GA4_PROPERTY_ID`。
+TKF 使用 `TKF_GA4_PROPERTY_ID`，TMS 使用 `TMS_GA4_PROPERTY_ID`，FKK 使用 `FKK_GA4_PROPERTY_ID`，BLK 使用 `BLK_GA4_PROPERTY_ID`。这里必须填写 GA4 的纯数字属性 ID，不能填写以 `G-` 开头的衡量 ID。兼容旧配置时，TKF 仍可读取 `GA4_PROPERTY_ID`。
 
 面板顶部提供 7 天、30 天、90 天和自定义起止日期。时间范围通过 URL 在各页面间保留，并由 Worker/D1 实际过滤概览、菜单、全局点击、用户行为和 AI 数据集。
 
@@ -188,7 +196,7 @@ node scripts/sync-ga4-to-cloudflare.mjs --start-date 2026-09-01 --end-date 2026-
 
 ### Cloudflare Worker + D1
 
-线上报表和用户事件以 Cloudflare D1 为唯一数据源，所有报表、用户和事件都按 `site=tkf`、`site=tms` 或 `site=fkk` 隔离。Worker 地址不包含结尾斜杠：
+线上报表和用户事件以 Cloudflare D1 为唯一数据源，所有报表、用户和事件都按 `site=tkf`、`site=tms`、`site=fkk` 或 `site=blk` 隔离。Worker 地址不包含结尾斜杠：
 
 ```text
 USER_EVENT_API_URL=https://你的Worker地址/v1
@@ -232,6 +240,15 @@ Shopify 自定义 Pixel 还需追加 `shopify/customer-pixels/tkf-signal-purchas
 ```
 
 脚本会为浏览器保存匿名 `visitorId`，为当前标签页保存 `sessionId`，并记录链接、按钮及带 `data-tkf-track` 的控件。可在元素上增加 `data-tkf-key`、`data-tkf-label`、`data-tkf-section` 让报表显示更明确的名称；不需要采集个人信息。分析域名必须使用 HTTPS，不能让 HTTPS 商店页面请求 HTTP 地址。
+
+### SHOPLINE 快速接入
+
+BLK 使用两个职责分离的脚本：
+
+- `shopline/custom-code/blk-signal-publisher.js`：运行在店铺页面，在 SHOPLINE 客户隐私 API 允许后记录页面与可交互元素，并发布自定义客户事件。
+- `shopline/customer-events/blk-ga4-signal-pixel.js`：用于替换已有 `Google_Analytic` 像素代码，订阅 SHOPLINE 标准电商事件、菜单和全局点击，并把完成购买写入 BLK 用户行为链。
+
+不要新建第二个 GA4 像素，否则会造成重复统计。SHOPLINE 安装步骤参见 `docs/handoffs/BLK-SHOPLINE-埋点接入交接.md`。
 
 ## 数据位置
 

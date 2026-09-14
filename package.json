@@ -10,7 +10,9 @@
     "sync:ga4-to-cloudflare": "node scripts/sync-ga4-to-cloudflare.mjs",
     "sync:tkf": "node scripts/sync-ga4-to-cloudflare.mjs --site tkf",
     "sync:tms": "node scripts/sync-ga4-to-cloudflare.mjs --site tms",
-    "sync:fkk": "node scripts/sync-ga4-to-cloudflare.mjs --site fkk"
+    "sync:fkk": "node scripts/sync-ga4-to-cloudflare.mjs --site fkk",
+    "sync:blk": "node scripts/sync-ga4-to-cloudflare.mjs --site blk",
+    "ga4:dimensions": "node scripts/ensure-ga4-custom-dimensions.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",

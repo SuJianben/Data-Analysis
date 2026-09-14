@@ -5,6 +5,7 @@ import type { Env } from "./types";
 import { parseIdentityKey, parseUserEventPayload } from "./validation";
 import { parseDateRange } from "./date-range";
 import { isOpaqueShopifyPurchaseRequest } from "./shopify-pixel-ingest";
+import { isOpaqueShoplineEventRequest } from "./shopline-pixel-ingest";
 import { browserPayloadMatchesSite } from "./sites";
 
 const MAX_BODY_BYTES = 256_000;
@@ -25,8 +26,8 @@ async function ingest(request: Request, env: Env) {
     if (hasBrowserAccess && !hasServerAccess && !browserPayloadMatchesSite(env.SERVICE_NAME, request.headers.get("Origin"), payload.siteKey)) {
       return json(request, env, { ok: false, error: "来源域名、站点与接收入口不匹配。" }, 403);
     }
-    if (!hasStandardAccess && !isOpaqueShopifyPurchaseRequest(request, payload)) {
-      return json(request, env, { ok: false, error: "该来源只允许提交 Shopify 完成购买事件。" }, 403);
+    if (!hasStandardAccess && !isOpaqueShopifyPurchaseRequest(request, payload) && !isOpaqueShoplineEventRequest(request, payload)) {
+      return json(request, env, { ok: false, error: "该隔离像素来源只允许提交经过校验的完成购买事件。" }, 403);
     }
     const inserted = await saveEvents(env, payload.siteKey, payload.source, payload.events);
     return json(request, env, { ok: true, received: payload.events.length, inserted });

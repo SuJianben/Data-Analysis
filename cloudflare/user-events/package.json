@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "npm run deploy:tkf && npm run deploy:tms && npm run deploy:fkk",
+    "deploy": "npm run deploy:tkf && npm run deploy:tms && npm run deploy:fkk && npm run deploy:blk",
     "deploy:tkf": "wrangler deploy",
     "deploy:tms": "wrangler deploy --name tms-signal-user-events --var SERVICE_NAME:tms-signal-user-events",
     "deploy:fkk": "wrangler deploy --name fkk-signal-user-events --var SERVICE_NAME:fkk-signal-user-events",
+    "deploy:blk": "wrangler deploy --name blk-signal-user-events --var SERVICE_NAME:blk-signal-user-events",
     "typecheck": "tsc --noEmit",
     "db:migrate:local": "wrangler d1 migrations apply tkf-signal-user-events --local",
     "db:migrate:remote": "wrangler d1 migrations apply tkf-signal-user-events --remote"

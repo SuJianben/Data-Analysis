@@ -178,7 +178,7 @@ body {
 }
 .nav-site-link:hover { background: rgba(255, 255, 255, .46); color: #374151; }
 .nav-site-link.is-active { background: rgba(0, 153, 187, .09); color: #1f2937; }
-.nav-site-link span {
+.nav-site-link .nav-site-short {
   display: grid;
   place-items: center;
   width: 30px;
@@ -187,8 +187,17 @@ body {
   background: rgba(17, 24, 39, .045);
   color: inherit;
 }
-.nav-site-link.is-active span { background: var(--blue); color: white; box-shadow: 0 0 10px rgba(0, 153, 187, .2); }
-.nav-site-link small { font-size: 10px; }
+.nav-site-link.is-active .nav-site-short { background: var(--blue); color: white; box-shadow: 0 0 10px rgba(0, 153, 187, .2); }
+.nav-site-link .nav-site-name { font-size: 10px; }
+.nav-site-link .nav-platform {
+  border-color: rgba(0, 153, 187, .28);
+  background: rgba(0, 153, 187, .055);
+  color: var(--blue-dark);
+}
+.nav-site-link.is-active .nav-platform {
+  border-color: rgba(0, 153, 187, .42);
+  background: rgba(255, 255, 255, .52);
+}
 
 .sidebar-foot {
   margin: auto 16px 0;

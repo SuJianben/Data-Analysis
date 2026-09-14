@@ -95,7 +95,7 @@ export function parseAnalyticsImportPayload(value: unknown): AnalyticsImportPayl
   if (!isRecord(value)) throw new Error("报表导入内容格式不正确。");
   if (!isRecord(value.period)) throw new Error("同步日期范围格式不正确。");
   const siteKey = value.siteKey === undefined ? "tkf" : requiredString(value.siteKey, "siteKey", 3);
-  if (!isSiteKey(siteKey)) throw new Error("siteKey 只支持 tkf、tms 或 fkk。");
+  if (!isSiteKey(siteKey)) throw new Error("siteKey 只支持 tkf、tms、fkk 或 blk。");
   const payload: AnalyticsImportPayload = {
     siteKey,
     source: requiredString(value.source, "source", 80),

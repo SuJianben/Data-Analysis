@@ -63,7 +63,7 @@ export function parseUserEventPayload(value: unknown): UserEventPayload {
   const rawEvents = Array.isArray(value.events) ? value.events : value.event ? [value.event] : [];
   if (!rawEvents.length || rawEvents.length > 50) throw new Error("每次需要提交 1 至 50 个事件。");
   const siteKey = value.siteKey === undefined ? "tkf" : requiredString(value.siteKey, "siteKey", 3, 3);
-  if (!isSiteKey(siteKey)) throw new Error("siteKey 只支持 tkf、tms 或 fkk。");
+  if (!isSiteKey(siteKey)) throw new Error("siteKey 只支持 tkf、tms、fkk 或 blk。");
   return { siteKey, source, events: rawEvents.map(parseEvent) };
 }
 

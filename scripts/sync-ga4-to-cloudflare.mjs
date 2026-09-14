@@ -84,7 +84,8 @@ function validateDate(value, optionName) {
 
 async function main() {
   const siteKey = (option("--site") || process.env.ANALYTICS_SITE || "tkf").toLowerCase();
-  if (!new Set(["tkf", "tms", "fkk"]).has(siteKey)) throw new Error("--site 只支持 tkf、tms 或 fkk");
+  const supportedSites = new Set(["tkf", "tms", "fkk", "blk"]);
+  if (!supportedSites.has(siteKey)) throw new Error("--site 只支持 tkf、tms、fkk 或 blk");
   const fallbackPeriod = defaultPeriod();
   const period = {
     startDate: option("--start-date") || fallbackPeriod.startDate,

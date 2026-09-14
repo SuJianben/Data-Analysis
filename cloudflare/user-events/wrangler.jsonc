@@ -9,7 +9,7 @@
     "head_sampling_rate": 0.1
   },
   "vars": {
-    "ALLOWED_ORIGINS": "https://turkforma.com,https://www.turkforma.com,https://mezkiraly.com,https://www.mezkiraly.com,https://footballkituk.com,https://www.footballkituk.com",
+    "ALLOWED_ORIGINS": "https://turkforma.com,https://www.turkforma.com,https://mezkiraly.com,https://www.mezkiraly.com,https://footballkituk.com,https://www.footballkituk.com,https://belgiumkits.com,https://www.belgiumkits.com",
     "SERVICE_NAME": "tkf-signal-user-events"
   },
   "d1_databases": [
