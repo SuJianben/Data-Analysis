@@ -29,6 +29,7 @@
 - Worker 支持 `site=fkk`，并新增“来源域名 + Worker 服务名 + siteKey”三项一致校验，浏览器不能把一个站点的数据写入另一个站点。
 - FKK 正式主题已加载身份和点击埋点文件，保留正式 GA4 衡量 ID `G-51EXGWMTDP`，不重复发送页面浏览。
 - FKK GA4 属性 `553763610` 已建立 12 个事件级自定义维度：菜单名称/键/父菜单/层级/动作、点击目标、热力网格、元素分组、页面区域、元素键/名称和目标路径。
+- FKK Shopify Customer Pixel 已由有权限的站点同事创建并启用，正式前台已加载该 Pixel 的 Shopify 沙箱运行环境。
 - 已同步 2026-08-15 至 2026-09-13 的 FKK GA4 历史数据到 Cloudflare D1，共 9 行汇总数据，`syncId=13`。
 - 面板生产版本已发布到 `https://tkf-signal.vercel.app`。
 
@@ -50,8 +51,10 @@
 - GA Data API 成功读取属性 `553763610` 的真实数据；本机生产构建成功生成 17 个页面/接口。
 - 浏览器真实打开 FKK 概览，确认三站二级菜单、日期范围、3,337 次页面浏览、2,736 位访问用户及设备构成均正常显示；菜单、全局点击和用户行为页面保持 FKK 站点参数且无串站数据。
 - Vercel 生产构建生成 17 个页面/接口并完成别名切换；线上浏览器再次确认 FKK 概览、菜单分析跳转和日期参数保留正常。
+- 在隔离浏览器中打开 FKK 正式店，确认 Shopify 自定义 Pixel 沙箱 `web-pixel-238420249` 已加载，并向 `G-51EXGWMTDP` 成功发送 GA4 请求。
+- 真实执行一次商品加入购物车，GA4 `add_to_cart` 请求返回 204；请求包含商品名、变体尺码 S、单价 42、数量 1、币种 GBP，证明 Customer Pixel 的加购订阅已在生产环境生效。
 
 ## 遗留问题
 
-- 当前 Google/Shopify 登录账号 `wjiahao@ouyaluo.com` 没有 FKK 店铺后台权限，无法在“客户事件”页面完成 FKK Customer Pixel 的创建与连接。因此购买、加入购物车和开始结账的 Customer Pixel 代码已经准备好，但尚未在 FKK Shopify 后台启用。
-- 需要使用有 FKK 后台权限的 Shopify 账号打开客户事件页后，才能完成最后一步购买链路验收。
+- 当前账号 `wjiahao@ouyaluo.com` 仍无法读取 FKK Shopify “客户事件”后台页，但正式前台运行证据已确认 Customer Pixel 启用成功。
+- `checkout_started` 与 `checkout_completed` 不使用测试订单人为触发；需等下一次真实结账/购买后，再在 GA4 与 D1 中核对真实购买归因。
