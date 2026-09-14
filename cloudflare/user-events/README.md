@@ -34,6 +34,8 @@ npm run dev
 
 密钥只保存在 Cloudflare 和调用方的环境变量中，禁止写入代码、日志或 Git 仓库。`ALLOWED_ORIGINS` 只填写正式店铺 HTTPS 域名。
 
+Shopify 自定义 Pixel 在沙箱 iframe 中提交请求时会使用不透明来源 `Origin: null`。Worker 不会把该来源加入普通来源白名单，而是仅对符合下列全部条件的单条事件开放受限入口：来源与站点匹配、事件为 `purchase`、目标为 `checkout_completed`、订单哈希格式正确、金额/币种/商品数量有效且事件发生在允许时间窗口内。其他不透明来源请求继续返回 403，重复购买事件由数据库唯一键去重。
+
 ## 用户归属规则
 
 - 未登录行为按 `visitorId` 汇总。

@@ -4,11 +4,13 @@ import { getUserDeviceBreakdown, getUserEvents, getUserSummaries, getUserTrend, 
 import type { Env } from "./types";
 import { parseIdentityKey, parseUserEventPayload } from "./validation";
 import { parseDateRange } from "./date-range";
+import { isOpaqueShopifyPurchaseRequest } from "./shopify-pixel-ingest";
 
 const MAX_BODY_BYTES = 256_000;
 
 async function ingest(request: Request, env: Env) {
-  if (!isBrowserOriginAllowed(request, env) && !hasServerIngestAccess(request, env)) {
+  const hasStandardAccess = isBrowserOriginAllowed(request, env) || hasServerIngestAccess(request, env);
+  if (!hasStandardAccess && request.headers.get("Origin") !== "null") {
     return json(request, env, { ok: false, error: "该来源不允许提交用户事件。" }, 403);
   }
   const body = await request.text();
@@ -17,6 +19,9 @@ async function ingest(request: Request, env: Env) {
   }
   try {
     const payload = parseUserEventPayload(JSON.parse(body));
+    if (!hasStandardAccess && !isOpaqueShopifyPurchaseRequest(request, payload)) {
+      return json(request, env, { ok: false, error: "该来源只允许提交 Shopify 完成购买事件。" }, 403);
+    }
     const inserted = await saveEvents(env, payload.siteKey, payload.source, payload.events);
     return json(request, env, { ok: true, received: payload.events.length, inserted });
   } catch (error) {
