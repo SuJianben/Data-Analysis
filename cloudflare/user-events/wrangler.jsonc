@@ -9,7 +9,8 @@
     "head_sampling_rate": 0.1
   },
   "vars": {
-    "ALLOWED_ORIGINS": "https://turkforma.com,https://www.turkforma.com,https://mezkiraly.com,https://www.mezkiraly.com"
+    "ALLOWED_ORIGINS": "https://turkforma.com,https://www.turkforma.com,https://mezkiraly.com,https://www.mezkiraly.com",
+    "SERVICE_NAME": "tkf-signal-user-events"
   },
   "d1_databases": [
     {

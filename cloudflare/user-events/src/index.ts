@@ -81,7 +81,7 @@ export default {
       return new Response(null, { status: 204, headers: corsHeaders(request, env) });
     }
     if (request.method === "GET" && url.pathname === "/health") {
-      return json(request, env, { ok: true, service: "tkf-signal-user-events", storage: "cloudflare-d1" });
+      return json(request, env, { ok: true, service: env.SERVICE_NAME, storage: "cloudflare-d1" });
     }
     const analyticsResponse = await handleAnalyticsRequest(request, env, url.pathname);
     if (analyticsResponse) return analyticsResponse;

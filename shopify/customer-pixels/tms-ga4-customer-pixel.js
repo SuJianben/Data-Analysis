@@ -1,6 +1,6 @@
 // TMS GA4 + Signal - Shopify Customer Events
 const GA4_MEASUREMENT_ID = 'G-6CCD7E5TD3';
-const TMS_SIGNAL_EVENT_ENDPOINT = 'https://tkf-signal-user-events.trustmereview.workers.dev/v1/events';
+const TMS_SIGNAL_EVENT_ENDPOINT = 'https://tms-signal-user-events.trustmereview.workers.dev/v1/events';
 const TMS_SIGNAL_VISITOR_KEY = 'tms_signal_visitor_id';
 const TMS_SIGNAL_SESSION_KEY = 'tms_signal_session_id';
 

@@ -32,6 +32,13 @@ npm run dev
 3. 分别执行 `npx wrangler secret put READ_API_KEY` 和 `npx wrangler secret put SERVER_INGEST_KEY`。
 4. 执行 `npm run deploy`。
 
+`npm run deploy` 会从同一份源码依次发布两个站点一致的入口：
+
+- TKF：`https://tkf-signal-user-events.trustmereview.workers.dev`
+- TMS：`https://tms-signal-user-events.trustmereview.workers.dev`
+
+两个 Worker 绑定同一个 D1，数据仍由载荷中的 `siteKey` 隔离。健康检查会返回与域名一致的服务名，方便从日志和监控中辨认 TKF 与 TMS。单独发布时可使用 `npm run deploy:tkf` 或 `npm run deploy:tms`，禁止复制两套 Worker 源码分别维护。
+
 密钥只保存在 Cloudflare 和调用方的环境变量中，禁止写入代码、日志或 Git 仓库。`ALLOWED_ORIGINS` 只填写正式店铺 HTTPS 域名。
 
 Shopify 自定义 Pixel 在沙箱 iframe 中提交请求时会使用不透明来源 `Origin: null`。Worker 不会把该来源加入普通来源白名单，而是仅对符合下列全部条件的单条事件开放受限入口：来源与站点匹配、事件为 `purchase`、目标为 `checkout_completed`、订单哈希格式正确、金额/币种/商品数量有效且事件发生在允许时间窗口内。其他不透明来源请求继续返回 403，重复购买事件由数据库唯一键去重。

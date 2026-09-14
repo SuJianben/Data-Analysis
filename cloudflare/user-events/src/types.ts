@@ -1,6 +1,7 @@
 export interface Env {
   DB: D1Database;
   ALLOWED_ORIGINS: string;
+  SERVICE_NAME: string;
   READ_API_KEY: string;
   SERVER_INGEST_KEY: string;
 }
