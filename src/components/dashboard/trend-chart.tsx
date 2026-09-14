@@ -44,8 +44,8 @@ export function TrendChart({ data, dateRange }: { data: TrendPoint[]; dateRange:
         {[0.25, 0.5, 0.75].map((line) => (
           <line key={line} x1={padding} x2={width - padding} y1={height * line} y2={height * line} className="chart-grid" />
         ))}
-        <path d={area} fill="url(#areaFill)" />
-        <path d={path} className="chart-line" />
+        <path d={area} className="chart-area" fill="url(#areaFill)" />
+        <path d={path} pathLength={1} className="chart-line" />
         {activePoint && <line className="chart-guide" x1={activePoint.x} x2={activePoint.x} y1={padding} y2={height - padding} />}
         {points.map((point, index) => (
           <g

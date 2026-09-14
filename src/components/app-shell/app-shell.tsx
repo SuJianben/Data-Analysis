@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { DateRangeFilter } from "@/components/app-shell/date-range-filter";
 import { NavLinks } from "@/components/app-shell/nav-links";
 import { SiteBreadcrumb } from "@/components/app-shell/site-breadcrumb";
+import { RouteMotion } from "@/components/motion/route-motion";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const usesCloudflare = Boolean(process.env.USER_EVENT_API_URL?.trim());
@@ -32,7 +33,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <DateRangeFilter />
           </Suspense>
         </header>
-        <main>{children}</main>
+        <main>
+          <Suspense fallback={<div className="route-motion-frame">{children}</div>}>
+            <RouteMotion>{children}</RouteMotion>
+          </Suspense>
+        </main>
       </div>
     </div>
   );

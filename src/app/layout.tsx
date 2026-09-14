@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "@/styles/dashboard-theme.css";
+import "@/styles/dashboard-motion.css";
+import "@/styles/dashboard-chart-motion.css";
+import "@/styles/dashboard-ai-motion.css";
 import { AppShell } from "@/components/app-shell/app-shell";
 
 export const metadata: Metadata = {

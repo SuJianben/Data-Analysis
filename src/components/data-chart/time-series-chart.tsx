@@ -74,7 +74,7 @@ export function TimeSeriesChart({
                 const value = point.values[key];
                 const barHeight = (value / max) * chartHeight;
                 const seriesOffset = (seriesIndex - (visibleSeries.length - 1) / 2) * barWidth;
-                return <rect key={key} x={x + seriesOffset} y={height - padding - barHeight} width={Math.max(barWidth - 1, 1)} height={barHeight} rx="1" fill={color} opacity={activeIndex === null || activeIndex === index ? 1 : .55} />;
+                return <rect key={key} className="traffic-bar" x={x + seriesOffset} y={height - padding - barHeight} width={Math.max(barWidth - 1, 1)} height={barHeight} rx="1" fill={color} opacity={activeIndex === null || activeIndex === index ? 1 : .55} style={{ animationDelay: `${Math.min(index, 12) * 28 + seriesIndex * 35}ms` }} />;
               })}
             </g>
           );
@@ -86,7 +86,7 @@ export function TimeSeriesChart({
                 const y = height - padding - (point.values[key] / max) * chartHeight;
                 return `${index ? "L" : "M"}${x},${y}`;
               }).join(" ");
-              return <path key={key} d={path} className="traffic-line" stroke={color} />;
+              return <path key={key} d={path} pathLength={1} className="traffic-line" stroke={color} />;
             })}
             {points.map((point, index) => {
               const x = padding + (index / Math.max(points.length - 1, 1)) * (width - padding * 2);

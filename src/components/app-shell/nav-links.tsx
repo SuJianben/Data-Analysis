@@ -2,6 +2,7 @@
 
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useState } from "react";
 import { siteList } from "@/config/sites";
 import { resolveSite } from "@/features/site-selection/site-selection";
 
@@ -20,10 +21,64 @@ function NavLinkContent({ short, label, sub }: { short: string; label: string; s
     <>
       <span className="nav-short" aria-hidden="true">{short}</span>
       <span className="nav-copy"><span className="nav-label">{label}</span><small className="nav-sub">{sub}</small></span>
-      <span className="nav-chevron" aria-hidden="true">⌄</span>
       <span className={`nav-pending ${pending ? "is-visible" : ""}`} aria-hidden="true" />
     </>
   );
+}
+
+function NavGroups({ pathname, queryString, currentSite }: { pathname: string; queryString: string; currentSite: ReturnType<typeof resolveSite> }) {
+  const activeHref = links.find((link) => link.href === "/" ? pathname === "/" : pathname.startsWith(link.href))?.href || "/";
+  const [expandedHref, setExpandedHref] = useState<string | null>(activeHref);
+
+  return links.map((link) => {
+    const active = link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
+    const expanded = expandedHref === link.href;
+    const primaryHref = `${link.href}?${queryString}`;
+    return (
+      <div className={`nav-group ${expanded ? "is-open" : ""}`} key={link.href}>
+        <div className="nav-primary-row">
+          <Link
+            className={`nav-link ${active ? "is-active" : ""}`}
+            href={primaryHref}
+            onClick={() => setExpandedHref(expanded && active ? null : link.href)}
+          >
+            <NavLinkContent short={link.short} label={link.label} sub={link.sub} />
+          </Link>
+          <button
+            className="nav-toggle"
+            type="button"
+            aria-label={`${expanded ? "收起" : "展开"}${link.label}站点选择`}
+            aria-expanded={expanded}
+            onClick={() => setExpandedHref(expanded ? null : link.href)}
+          >
+            <span className="nav-chevron" aria-hidden="true">⌄</span>
+          </button>
+        </div>
+        <div className="nav-sites-reveal" aria-hidden={!expanded}>
+          <div className="nav-sites" aria-label={`${link.label}站点选择`}>
+            {siteList.map((site) => {
+              const query = new URLSearchParams(queryString);
+              query.set("site", site.key);
+              query.delete("tablePage");
+              query.delete("query");
+              query.delete("device");
+              return (
+                <Link
+                  className={`nav-site-link ${site.key === currentSite ? "is-active" : ""}`}
+                  href={`${link.href}?${query.toString()}`}
+                  key={site.key}
+                  tabIndex={expanded ? undefined : -1}
+                >
+                  <span>{site.shortLabel}</span>
+                  <small>{site.label}</small>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  });
 }
 
 export function NavLinks() {
@@ -38,38 +93,7 @@ export function NavLinks() {
   rangeQuery.set("site", currentSite);
   return (
     <nav className="nav-list" aria-label="主导航">
-      {links.map((link) => {
-        const active = link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
-        const primaryHref = `${link.href}?${rangeQuery.toString()}`;
-        return (
-          <div className={`nav-group ${active ? "is-open" : ""}`} key={link.href}>
-            <Link className={`nav-link ${active ? "is-active" : ""}`} href={primaryHref}>
-              <NavLinkContent short={link.short} label={link.label} sub={link.sub} />
-            </Link>
-            {active && (
-              <div className="nav-sites" aria-label={`${link.label}站点选择`}>
-                {siteList.map((site) => {
-                  const query = new URLSearchParams(rangeQuery);
-                  query.set("site", site.key);
-                  query.delete("tablePage");
-                  query.delete("query");
-                  query.delete("device");
-                  return (
-                    <Link
-                      className={`nav-site-link ${site.key === currentSite ? "is-active" : ""}`}
-                      href={`${link.href}?${query.toString()}`}
-                      key={site.key}
-                    >
-                      <span>{site.shortLabel}</span>
-                      <small>{site.label}</small>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })}
+      <NavGroups key={pathname} pathname={pathname} queryString={rangeQuery.toString()} currentSite={currentSite} />
     </nav>
   );
 }

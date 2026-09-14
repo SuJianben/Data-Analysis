@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { useState } from "react";
 import { formatNumber } from "@/utils/format";
 
@@ -36,6 +37,11 @@ export function DeviceDonutChart({ data, centerLabel = "访问用户" }: { data:
             const length = (value / total) * circumference;
             const dashOffset = -offset;
             offset += length;
+            const motionStyle = {
+              animationDelay: `${index * 90}ms`,
+              "--donut-length": length,
+              "--donut-gap": circumference - length,
+            } as CSSProperties;
             return (
               <circle
                 key={item.deviceCategory}
@@ -48,6 +54,7 @@ export function DeviceDonutChart({ data, centerLabel = "访问用户" }: { data:
                 strokeWidth={activeIndex === index ? 21 : 18}
                 strokeDasharray={`${length} ${circumference - length}`}
                 strokeDashoffset={dashOffset}
+                style={motionStyle}
                 transform="rotate(-90 70 70)"
                 onMouseEnter={() => setActiveIndex(index)}
                 onMouseLeave={() => setActiveIndex(null)}

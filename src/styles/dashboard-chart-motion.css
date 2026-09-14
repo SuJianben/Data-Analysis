@@ -1,0 +1,86 @@
+@keyframes motion-grow-y {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+@keyframes motion-grow-x {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes motion-line-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes motion-donut-reveal {
+  from { opacity: .15; stroke-dasharray: 0 var(--donut-gap); }
+  to { opacity: 1; stroke-dasharray: var(--donut-length) var(--donut-gap); }
+}
+
+@keyframes motion-point-pop {
+  from { opacity: 0; transform: scale(.2); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.traffic-bar {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: motion-grow-y .65s var(--motion-enter) both;
+}
+
+.traffic-line,
+.chart-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: motion-line-draw .9s var(--motion-enter) .08s forwards;
+}
+
+.chart-area { animation: motion-fade-in .65s ease .18s both; }
+
+.chart-point-dot,
+.scatter-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: motion-point-pop .38s var(--motion-enter) both;
+}
+
+.donut-segment {
+  animation: motion-donut-reveal .7s var(--motion-enter) both;
+}
+
+.donut-legend > div,
+.funnel-row,
+.page-entry-row {
+  animation: motion-float-up .36s var(--motion-enter) both;
+}
+
+.donut-legend > div:nth-child(2),
+.funnel-row:nth-child(2),
+.page-entry-row:nth-child(2) { animation-delay: 55ms; }
+.donut-legend > div:nth-child(3),
+.funnel-row:nth-child(3),
+.page-entry-row:nth-child(3) { animation-delay: 110ms; }
+.donut-legend > div:nth-child(4),
+.funnel-row:nth-child(4),
+.page-entry-row:nth-child(4) { animation-delay: 165ms; }
+.funnel-row:nth-child(5),
+.page-entry-row:nth-child(5) { animation-delay: 220ms; }
+.page-entry-row:nth-child(6) { animation-delay: 275ms; }
+
+.funnel-track i,
+.page-entry-row i,
+.rank-row i,
+.health-volume-bars i {
+  transform-origin: left center;
+  animation: motion-grow-x .8s var(--motion-enter) .12s both;
+}
+
+.chart-tooltip,
+.scatter-tooltip { animation: motion-float-up .18s ease both; }
+
+.data-table tbody tr {
+  transition: background .2s ease, box-shadow .2s ease, transform .2s ease;
+}
+
+.data-table tbody tr:hover { transform: translateX(2px); }
