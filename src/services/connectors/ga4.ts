@@ -1,6 +1,7 @@
 import { appConfig } from "@/config/env";
 import type { GlobalClickMetricInput, HeatmapMetricInput, MenuMetricInput, SiteMetricInput } from "@/types/analytics";
 import { resolveGa4AccessToken } from "@/services/connectors/ga4-auth";
+import { isTmsPaginationMenuLabel } from "@/analytics/tms-menu-classification";
 
 type Ga4Value = { value?: string };
 type Ga4Row = { dimensionValues?: Ga4Value[]; metricValues?: Ga4Value[] };
@@ -11,6 +12,7 @@ type Ga4Response = {
 };
 
 export type Ga4SyncInput = {
+  siteKey: "tkf" | "tms";
   accessToken?: string;
   propertyId?: string;
   startDate: string;
@@ -166,7 +168,7 @@ export async function fetchGa4Data(input: Ga4SyncInput): Promise<{
     navigationLocation: "header",
     clickTarget: dimension(row, 8),
     clickCount: metric(row, 0),
-  }));
+  })).filter((row) => input.siteKey !== "tms" || !isTmsPaginationMenuLabel(row.menuName));
 
   const siteMetrics: SiteMetricInput[] = (siteReport.rows || []).map((row) => ({
     date: normalizeGaDate(dimension(row, 0)),

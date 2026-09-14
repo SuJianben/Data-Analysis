@@ -21,7 +21,20 @@
     return "desktop";
   }
 
+  function isPaginationControl(element) {
+    if (element.closest(".pagination, .pagination-wrapper, [data-pagination], nav[aria-label='Tördelés']")) return true;
+    var link = element.closest("a[href]");
+    if (!link) return false;
+    try {
+      var url = new URL(link.getAttribute("href"), window.location.href);
+      return url.pathname === window.location.pathname && url.searchParams.has("page");
+    } catch (_error) {
+      return false;
+    }
+  }
+
   function pageSection(element) {
+    if (isPaginationControl(element)) return "pagination";
     if (element.closest("nav, [role='navigation']")) return "navigation";
     if (element.closest("header")) return "header";
     if (element.closest("main")) return "main";
