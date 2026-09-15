@@ -39,9 +39,12 @@
 - SHOPLINE Script Tag 列表由 0 条变为 1 条，回读确认 ID 为 `6aa8a367320c026a3e51e018`，地址、作用范围和加载事件均正确，没有重复记录。
 - BLK Worker 健康检查返回 HTTP 200。
 - 自包含交接文档复查通过：不再引用接收方无法访问的 `.js` 相对路径，内嵌代码与仓库源文件内容一致。
+- 客户事件代码由站点同事处理后完成线上回读：BLK 在 2026-09-15 已出现 147 位匿名访客、153 条用户事件。
+- 抽查一位匿名访客的完整链路，连续记录 3 次 `page_view`、3 次 `global_click` 和 1 次 `add_to_cart`，页面、点击、加购均已从 SHOPLINE 写入 Worker/D1 并能由面板接口读取。
+- 复查 Script Tag 仍为唯一 1 条，公开脚本与 BLK Worker 均返回 HTTP 200。
 
 ## 遗留问题
 
 - Belgiumkits 正式域名对自动化浏览器返回 Cloudflare HTTP 403，因此无法在本机完成真实点击验收；该结果不代表 Script Tag 创建失败。
-- SHOPLINE 自定义客户事件 Pixel 没有公开的商店级创建/更新 REST API，现有 `Google_Analytic` 仍需由有后台权限的同事按交接文档替换并保持连接。
-- 当前 BLK 用户行为接口仍为 0 条；只有客户事件 Pixel 连接后，页面发布的 `blk_signal_click` 才会被订阅并写入 Worker/D1。
+- SHOPLINE 自定义客户事件 Pixel 已由有后台权限的同事处理并开始产生真实页面、点击和加购事件。
+- 当前尚无接入后的真实 `purchase`，仍需等待下一笔完成购买事件核对 GA4、D1 和面板归因。
