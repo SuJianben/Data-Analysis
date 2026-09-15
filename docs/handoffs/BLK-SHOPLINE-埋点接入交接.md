@@ -14,10 +14,239 @@
 
 ## 第一步：替换现有 Google_Analytic 客户事件
 
+> 本文档是自包含交接文件，不需要访问原项目目录，也不要再寻找外部 `.js` 文件。
+
 1. 打开 SHOPLINE 后台的“设置 → 客户事件”。
 2. 打开现有的 `Google_Analytic`，不要再创建第二个 GA 客户事件。
-3. 用 [blk-ga4-signal-pixel.js](../../shopline/customer-events/blk-ga4-signal-pixel.js) 的完整内容替换原代码。
+3. 删除编辑器里的旧代码，完整粘贴下面代码。
 4. 保存并保持连接状态。
+
+```javascript
+// BLK GA4 ecommerce + Signal purchase - SHOPLINE Customer Events
+const GA4_MEASUREMENT_ID = "G-TRCFQDSHYR";
+const BLK_SIGNAL_EVENT_ENDPOINT = "https://blk-signal-user-events.trustmereview.workers.dev/v1/events";
+
+const script = document.createElement("script");
+script.setAttribute("src", "https://www.googletagmanager.com/gtag/js?id=" + GA4_MEASUREMENT_ID);
+script.setAttribute("async", "");
+document.head.appendChild(script);
+
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag("js", new Date());
+gtag("config", GA4_MEASUREMENT_ID, { send_page_view: false });
+
+function numberValue(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : undefined;
+}
+
+function pageDetails(event) {
+  return {
+    page_location: event.data?.url || event.context?.document?.location?.href,
+    page_title: event.data?.title || event.context?.document?.title,
+    page_referrer: event.context?.document?.referrer || undefined,
+  };
+}
+
+function pagePath(event, fallback) {
+  return event.data?.path || event.context?.document?.location?.pathname || fallback || "/";
+}
+
+function shoplineItems(list) {
+  return (Array.isArray(list) ? list : []).map((item) => ({
+    item_id: item.skuItemNo || item.skuId || item.product_id || item.spuId,
+    item_name: item.title || item.product_title || item.line_items_title,
+    item_variant: item.variant || item.sku_title,
+    item_category: item.category || item.custom_category,
+    price: numberValue(item.final_price ?? item.price),
+    quantity: Number(item.quantity || 1),
+  }));
+}
+
+function safeIdentifier(value, fallback) {
+  const normalized = String(value || "").replace(/[^a-zA-Z0-9._:-]/g, "_").slice(0, 140);
+  return normalized.length >= 8 ? normalized : fallback;
+}
+
+function isoTimestamp(value) {
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && numeric > 0) return new Date(numeric).toISOString();
+  const parsed = Date.parse(String(value || ""));
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString() : new Date().toISOString();
+}
+
+async function sha256(value) {
+  if (!value) return "";
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(value)));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function deviceCategory(event) {
+  const userAgent = String(event.context?.navigator?.userAgent || "").toLowerCase();
+  if (/ipad|tablet|playbook|silk/.test(userAgent)) return "tablet";
+  if (/mobile|iphone|ipod|android/.test(userAgent)) return "mobile";
+  return "desktop";
+}
+
+function signalEvent(event, eventName, overrides = {}) {
+  const identity = safeIdentifier(event.clientId || event.id, "shopline_client");
+  return {
+    eventId: safeIdentifier(`shopline_${eventName}_${event.id}`, `shopline_${eventName}_${identity}`),
+    visitorId: safeIdentifier(`visitor_shopline_${identity}`, "visitor_shopline_unknown"),
+    eventName,
+    occurredAt: isoTimestamp(event.timestamp),
+    pagePath: pagePath(event, "/"),
+    deviceCategory: deviceCategory(event),
+    ...overrides,
+  };
+}
+
+async function sendSignal(event) {
+  await fetch(BLK_SIGNAL_EVENT_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=UTF-8" },
+    body: JSON.stringify({ siteKey: "blk", source: "shopline_pixel:blk", event }),
+    keepalive: true,
+  });
+}
+
+async function sendSignalPurchase(event) {
+  const data = event.data || {};
+  const order = data.checkout?.order || {};
+  const rawOrderId = data.orderSeq || data.appOrderSeq || order.token || "";
+  const list = Array.isArray(data.list) ? data.list : [];
+  const itemCount = list.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+  if (!rawOrderId || itemCount < 1) return;
+
+  const fallbackSeed = safeIdentifier(event.clientId || event.id, "shopline_event");
+  const [customerIdHash, orderIdHash] = await Promise.all([
+    sha256(data.customer_id || ""),
+    sha256(rawOrderId),
+  ]);
+  const currency = String(data.currency || order.currency_code || "").toUpperCase();
+  const purchaseEvent = signalEvent(event, "purchase", {
+    eventId: safeIdentifier("shopline_purchase_" + event.id, "shopline_purchase_" + fallbackSeed),
+    pagePath: pagePath(event, "/checkouts/thank-you"),
+    pageSection: "checkout",
+    clickTarget: "checkout_completed",
+    metadata: {
+      currency,
+      value: Number(data.value ?? order.total_price ?? 0),
+      itemCount,
+      orderIdHash,
+      platform: "shopline",
+    },
+  });
+  if (customerIdHash) purchaseEvent.customerIdHash = customerIdHash;
+  await sendSignal(purchaseEvent);
+}
+
+analytics.subscribe("blk_signal_click", (event) => {
+  const data = event.data || {};
+  const clickParams = {
+    page_path: data.page_path || "/",
+    element_key: data.element_key || "other:unnamed",
+    element_label: data.element_label || "",
+    page_section: data.page_section || "other",
+    destination_path: data.destination_path || "",
+    click_target: data.click_target || "other",
+    device_category: data.device_category || "unknown",
+  };
+  gtag("event", "global_click", clickParams);
+  gtag("event", "page_heatmap_click", {
+    page_path: clickParams.page_path,
+    heatmap_cell: data.heatmap_cell || "x0_y0",
+    element_group: data.element_group || clickParams.click_target,
+    page_section: clickParams.page_section,
+    click_target: clickParams.click_target,
+    device_category: clickParams.device_category,
+  });
+  if (clickParams.page_section === "header" || clickParams.page_section === "navigation") {
+    gtag("event", "header_navigation_click", {
+      menu_name: clickParams.element_label || "(unnamed menu)",
+      menu_key: clickParams.element_key,
+      parent_menu_name: "",
+      menu_level: "1",
+      menu_action: clickParams.click_target === "toggle" ? "toggle" : "navigate",
+      navigation_location: clickParams.page_section,
+      click_target: clickParams.destination_path,
+      device_category: clickParams.device_category,
+    });
+  }
+  sendSignal(signalEvent(event, "global_click", {
+    elementKey: clickParams.element_key,
+    elementLabel: clickParams.element_label,
+    pageSection: clickParams.page_section,
+    destinationPath: clickParams.destination_path,
+    clickTarget: clickParams.click_target,
+    metadata: {
+      heatmapCell: data.heatmap_cell || "x0_y0",
+      elementGroup: data.element_group || clickParams.click_target,
+    },
+  })).catch(() => {});
+});
+
+analytics.subscribe("page_viewed", (event) => {
+  gtag("event", "page_view", pageDetails(event));
+  sendSignal(signalEvent(event, "page_view")).catch(() => {});
+});
+
+analytics.subscribe("product_added_to_cart", (event) => {
+  const data = event.data || {};
+  gtag("event", "add_to_cart", {
+    ...pageDetails(event),
+    currency: data.currency,
+    value: numberValue(data.value),
+    items: shoplineItems(data.list),
+  });
+  sendSignal(signalEvent(event, "add_to_cart", {
+    pageSection: "product",
+    clickTarget: "product_added_to_cart",
+    metadata: {
+      currency: String(data.currency || "").toUpperCase(),
+      value: Number(data.value || 0),
+      itemCount: (Array.isArray(data.list) ? data.list : []).reduce((sum, item) => sum + Number(item.quantity || 0), 0),
+    },
+  })).catch(() => {});
+});
+
+analytics.subscribe("checkout_started", (event) => {
+  const data = event.data || {};
+  gtag("event", "begin_checkout", {
+    ...pageDetails(event),
+    currency: data.currency || data.checkout?.order?.currency_code,
+    value: numberValue(data.value ?? data.checkout?.order?.total_price),
+    items: shoplineItems(data.list),
+  });
+  sendSignal(signalEvent(event, "begin_checkout", {
+    pageSection: "checkout",
+    clickTarget: "checkout_started",
+    metadata: {
+      currency: String(data.currency || data.checkout?.order?.currency_code || "").toUpperCase(),
+      value: Number(data.value ?? data.checkout?.order?.total_price ?? 0),
+      itemCount: (Array.isArray(data.list) ? data.list : []).reduce((sum, item) => sum + Number(item.quantity || 0), 0),
+    },
+  })).catch(() => {});
+});
+
+analytics.subscribe("checkout_completed", (event) => {
+  const data = event.data || {};
+  const order = data.checkout?.order || {};
+  gtag("event", "purchase", {
+    ...pageDetails(event),
+    transaction_id: data.orderSeq || data.appOrderSeq || order.token,
+    value: numberValue(data.value ?? order.total_price),
+    tax: numberValue(data.taxAmount),
+    shipping: numberValue(order.shipping_price),
+    currency: data.currency || order.currency_code,
+    coupon: data.coupon || undefined,
+    items: shoplineItems(data.list),
+  });
+  sendSignalPurchase(event).catch(() => {});
+});
+
+```
 
 该脚本负责：
 
@@ -26,22 +255,16 @@
 - 将脱敏后的用户行为和购买归因数据写入 BLK Worker；
 - 不采集姓名、邮箱、电话、地址或原始订单号。
 
-## 第二步：接入店铺页面发布器
+## 第二步：确认店铺页面发布器
 
-正式环境优先通过 SHOPLINE Script Tag API 加载以下唯一脚本，不再把整段逻辑复制到后台：
+此项已经在 2026-09-15 通过 SHOPLINE Script Tag API 完成，不需要同事安装 Custom Code，也不要重复新增脚本。
 
-- `https://tkf-signal.vercel.app/integrations/shopline/blk-signal-publisher.js`
+- Script Tag ID：`6aa8a367320c026a3e51e018`
+- 正式脚本：`https://tkf-signal.vercel.app/integrations/shopline/blk-signal-publisher.js`
+- 作用范围：全部页面
+- 加载事件：`onload`
 
-这样后续修复埋点时只需更新项目中的公开脚本，不需要再次进入 SHOPLINE 后台粘贴完整代码。
-
-如果 Script Tag API 不可用，再使用以下后台手动方式：
-
-1. 打开 SHOPLINE 后台的“应用 → Custom Code”。
-2. 新建代码，名称建议使用 `BLK Signal Publisher`。
-3. 作用页面选择“所有页面”，设备选择“桌面端和移动端”，插入位置选择页面底部。
-4. 将 [blk-signal-publisher.js](../../shopline/custom-code/blk-signal-publisher.js) 的加载器内容放入 `<script>...</script>` 后保存并启用。
-
-公开脚本负责在用户允许追踪后采集菜单点击和全局点击，并通过 SHOPLINE 自定义事件把数据交给客户事件 Pixel。后台加载器仅负责载入公开脚本，不包含重复业务逻辑。
+该公开脚本负责在用户允许追踪后采集菜单点击和全局点击，并通过 SHOPLINE 自定义事件把数据交给第一步的客户事件 Pixel。
 
 ## 第三步：建立 GA4 自定义维度
 

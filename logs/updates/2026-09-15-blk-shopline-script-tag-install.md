@@ -20,6 +20,7 @@
 
 - `shopline/custom-code/blk-signal-publisher.js` 改为精简备用加载器，仅在无法使用 Script Tag API 时手动安装。
 - 交接文档优先使用 SHOPLINE Script Tag API，不再要求把整段业务代码复制进 Custom Code 后台。
+- 交接文档改为完全自包含：内嵌完整 `Google_Analytic` 客户事件代码，并明确 Publisher 已安装，不再依赖接收方本地项目路径。
 - 通过 SHOPLINE Admin REST API 为 `myfirststore-13z0` 创建一条 `display_scope=all`、`event=onload` 的 Script Tag。
 
 ## 影响范围
@@ -37,6 +38,7 @@
 - 公开脚本返回 HTTP 200，响应类型为 `application/javascript; charset=utf-8`，线上与本地 SHA-256 一致。
 - SHOPLINE Script Tag 列表由 0 条变为 1 条，回读确认 ID 为 `6aa8a367320c026a3e51e018`，地址、作用范围和加载事件均正确，没有重复记录。
 - BLK Worker 健康检查返回 HTTP 200。
+- 自包含交接文档复查通过：不再引用接收方无法访问的 `.js` 相对路径，内嵌代码与仓库源文件内容一致。
 
 ## 遗留问题
 
