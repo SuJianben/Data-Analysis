@@ -12,6 +12,9 @@ function gtag(){dataLayer.push(arguments);}
 gtag("js", new Date());
 gtag("config", GA4_MEASUREMENT_ID, { send_page_view: false });
 
+const AUTOMATED_USER_AGENT = /(?:bot\b|crawler|spider|slurp|bingpreview|facebookexternalhit|headlesschrome|phantomjs|lighthouse|pagespeed|pingdom|uptimerobot|python-requests|scrapy|curl\/|wget\/|go-http-client)/i;
+const GENERATED_FILTER_SEGMENT = /(?:^|\/|\+)blk-(?:combo|team)--/i;
+
 function numberValue(value) {
   const number = Number(value);
   return Number.isFinite(number) ? number : undefined;
@@ -27,6 +30,14 @@ function pageDetails(event) {
 
 function pagePath(event, fallback) {
   return event.data?.path || event.context?.document?.location?.pathname || fallback || "/";
+}
+
+function shouldFilterPageView(event) {
+  const userAgent = String(event.context?.navigator?.userAgent || "");
+  const path = String(pagePath(event, "/")).split("?", 1)[0];
+  if (AUTOMATED_USER_AGENT.test(userAgent)) return true;
+  if (path.toLowerCase().includes("/collections/") && GENERATED_FILTER_SEGMENT.test(path)) return true;
+  return !event.clientId;
 }
 
 function shoplineItems(list) {
@@ -67,6 +78,7 @@ function deviceCategory(event) {
 
 function signalEvent(event, eventName, overrides = {}) {
   const identity = safeIdentifier(event.clientId || event.id, "shopline_client");
+  const identitySource = event.clientId ? "shopline_client_id" : "shopline_event_fallback";
   return {
     eventId: safeIdentifier(`shopline_${eventName}_${event.id}`, `shopline_${eventName}_${identity}`),
     visitorId: safeIdentifier(`visitor_shopline_${identity}`, "visitor_shopline_unknown"),
@@ -75,6 +87,10 @@ function signalEvent(event, eventName, overrides = {}) {
     pagePath: pagePath(event, "/"),
     deviceCategory: deviceCategory(event),
     ...overrides,
+    metadata: {
+      identitySource,
+      ...(overrides.metadata || {}),
+    },
   };
 }
 
@@ -164,6 +180,7 @@ analytics.subscribe("blk_signal_click", (event) => {
 });
 
 analytics.subscribe("page_viewed", (event) => {
+  if (shouldFilterPageView(event)) return;
   gtag("event", "page_view", pageDetails(event));
   sendSignal(signalEvent(event, "page_view")).catch(() => {});
 });

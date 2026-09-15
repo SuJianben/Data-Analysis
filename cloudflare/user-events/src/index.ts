@@ -7,6 +7,7 @@ import { parseDateRange } from "./date-range";
 import { isOpaqueShopifyPixelRequest } from "./shopify-pixel-ingest";
 import { isOpaqueShoplineEventRequest } from "./shopline-pixel-ingest";
 import { browserPayloadMatchesSite } from "./sites";
+import { filterEventsBeforeWrite } from "./traffic-filter";
 
 const MAX_BODY_BYTES = 256_000;
 
@@ -29,8 +30,24 @@ async function ingest(request: Request, env: Env) {
     if (!hasStandardAccess && !isOpaqueShopifyPixelRequest(request, payload) && !isOpaqueShoplineEventRequest(request, payload)) {
       return json(request, env, { ok: false, error: "该隔离像素来源只允许提交经过校验的站点事件。" }, 403);
     }
-    const inserted = await saveEvents(env, payload.siteKey, payload.source, payload.events);
-    return json(request, env, { ok: true, received: payload.events.length, inserted });
+    const filtered = filterEventsBeforeWrite(request, payload);
+    if (filtered.events.length === 0) {
+      return json(request, env, {
+        ok: true,
+        received: payload.events.length,
+        inserted: 0,
+        filtered: filtered.filtered,
+        filterReasons: filtered.reasons,
+      });
+    }
+    const inserted = await saveEvents(env, payload.siteKey, payload.source, filtered.events);
+    return json(request, env, {
+      ok: true,
+      received: payload.events.length,
+      inserted,
+      filtered: filtered.filtered,
+      filterReasons: filtered.reasons,
+    });
   } catch (error) {
     return json(request, env, {
       ok: false,
