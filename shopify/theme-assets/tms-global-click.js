@@ -138,9 +138,6 @@
   }
 
   function send(params) {
-    if (window.TMSSignalIdentity && typeof window.TMSSignalIdentity.track === "function") {
-      window.TMSSignalIdentity.track("global_click", params);
-    }
     var started = Date.now();
     function attempt() {
       if (publishShopifyEvent(params)) return;

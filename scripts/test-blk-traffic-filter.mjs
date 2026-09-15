@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
-import { filterEventsBeforeWrite, isAutomatedUserAgent, isGeneratedCollectionFilterPath } from '../cloudflare/user-events/src/traffic-filter.ts';
+import { applyEventWritePolicy } from '../cloudflare/user-events/src/event-write-policy.ts';
+import { isAutomatedUserAgent, isGeneratedCollectionFilterPath } from '../cloudflare/user-events/src/traffic-filter.ts';
 
 const pixelSource = await readFile(new URL('../shopline/customer-events/blk-ga4-signal-pixel.js', import.meta.url), 'utf8');
 
@@ -31,17 +32,17 @@ const normalRequest = new Request('https://blk-signal-user-events.trustmereview.
   method: 'POST',
   headers: { 'user-agent': 'Mozilla/5.0 Chrome/140 Safari/537.36' },
 });
-assert.equal(filterEventsBeforeWrite(normalRequest, workerPayload('/products/example-shirt')).events.length, 1);
+assert.equal(applyEventWritePolicy(normalRequest, workerPayload('/products/example-shirt')).events.length, 1);
 assert.deepEqual(
-  filterEventsBeforeWrite(normalRequest, workerPayload('/collections/ronaldo/blk-combo--team~France')).reasons,
+  applyEventWritePolicy(normalRequest, workerPayload('/collections/ronaldo/blk-combo--team~France')).reasons,
   { generated_collection_filter: 1 },
 );
 assert.deepEqual(
-  filterEventsBeforeWrite(normalRequest, workerPayload('/', { identitySource: 'shopline_event_fallback' })).reasons,
+  applyEventWritePolicy(normalRequest, workerPayload('/', { identitySource: 'shopline_event_fallback' })).reasons,
   { unstable_page_identity: 1 },
 );
 const botRequest = new Request(normalRequest.url, { method: 'POST', headers: { 'user-agent': 'Googlebot/2.1' } });
-assert.deepEqual(filterEventsBeforeWrite(botRequest, workerPayload('/')).reasons, { automated_user_agent: 1 });
+assert.deepEqual(applyEventWritePolicy(botRequest, workerPayload('/')).reasons, { automated_user_agent: 1 });
 const purchasePayload = workerPayload('/checkouts/thank-you');
 purchasePayload.events[0] = {
   ...purchasePayload.events[0],
@@ -51,7 +52,28 @@ purchasePayload.events[0] = {
   clickTarget: 'checkout_completed',
   metadata: { identitySource: 'shopline_event_fallback', orderIdHash: 'a'.repeat(64), currency: 'EUR', value: 99, itemCount: 1 },
 };
-assert.equal(filterEventsBeforeWrite(botRequest, purchasePayload).events.length, 1, '购买事件不能被页面浏览过滤规则拦截。');
+assert.equal(applyEventWritePolicy(botRequest, purchasePayload).events.length, 1, '购买事件不能被页面浏览过滤规则拦截。');
+
+const shopifyFallbackPayload = {
+  siteKey: 'fkk',
+  source: 'shopify_pixel:fkk',
+  events: [{
+    ...workerPayload('/products/example-shirt').events[0],
+    eventId: 'shopify_page_view_fallback-12345678',
+    visitorId: 'shopify_event_fallback-12345678',
+    metadata: { identitySource: 'shopify_event_fallback' },
+  }],
+};
+assert.deepEqual(
+  applyEventWritePolicy(normalRequest, shopifyFallbackPayload).reasons,
+  { unstable_page_identity: 1 },
+  'Shopify 缺少 clientId 的低价值事件不应继续制造一次性访客。',
+);
+const shopifyPurchasePayload = {
+  ...shopifyFallbackPayload,
+  events: [{ ...shopifyFallbackPayload.events[0], eventName: 'purchase' }],
+};
+assert.equal(applyEventWritePolicy(botRequest, shopifyPurchasePayload).events.length, 1, '高价值购买事件始终保留。');
 
 function createPixelHarness() {
   const subscriptions = new Map();

@@ -7,7 +7,7 @@ import { parseDateRange } from "./date-range";
 import { isOpaqueShopifyPixelRequest } from "./shopify-pixel-ingest";
 import { isOpaqueShoplineEventRequest } from "./shopline-pixel-ingest";
 import { browserPayloadMatchesSite } from "./sites";
-import { filterEventsBeforeWrite } from "./traffic-filter";
+import { applyEventWritePolicy } from "./event-write-policy";
 
 const MAX_BODY_BYTES = 256_000;
 
@@ -30,7 +30,7 @@ async function ingest(request: Request, env: Env) {
     if (!hasStandardAccess && !isOpaqueShopifyPixelRequest(request, payload) && !isOpaqueShoplineEventRequest(request, payload)) {
       return json(request, env, { ok: false, error: "该隔离像素来源只允许提交经过校验的站点事件。" }, 403);
     }
-    const filtered = filterEventsBeforeWrite(request, payload);
+    const filtered = applyEventWritePolicy(request, payload);
     if (filtered.events.length === 0) {
       return json(request, env, {
         ok: true,
@@ -109,7 +109,7 @@ export default {
         ok: true,
         service: env.SERVICE_NAME,
         storage: "cloudflare-d1",
-        schemaVersion: "2026-09-15.identity-v2",
+        schemaVersion: "2026-09-15.write-policy-v1",
       });
     }
     const analyticsResponse = await handleAnalyticsRequest(request, env, url.pathname);

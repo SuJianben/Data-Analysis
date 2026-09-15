@@ -39,7 +39,7 @@
       .slice(0, 500);
   }
 
-  function eventFor(element) {
+  function eventDetails(element) {
     var link = element.closest("a");
     var destination = link && link.href ? new URL(link.href, window.location.href) : null;
     var key = element.getAttribute("data-tkf-key") || element.id || "";
@@ -48,23 +48,54 @@
     if (!key) key = target;
 
     return {
+      page_path: window.location.pathname + window.location.search,
+      element_key: key.slice(0, 300),
+      element_label: textOf(element),
+      page_section: element.closest("header, nav, main, footer, section")?.getAttribute("data-tkf-section") || "",
+      destination_path: destination ? destination.pathname + destination.search : "",
+      click_target: target,
+      device_category: deviceCategory()
+    };
+  }
+
+  function directEvent(details) {
+    return {
       eventId: createId("evt"),
       visitorId: getOrCreate(window.localStorage, STORAGE_KEY, "visitor"),
       sessionId: getOrCreate(window.sessionStorage, SESSION_KEY, "session"),
       eventName: "global_click",
       occurredAt: new Date().toISOString(),
-      pagePath: window.location.pathname + window.location.search,
-      elementKey: key.slice(0, 300),
-      elementLabel: textOf(element),
-      pageSection: element.closest("header, nav, main, footer, section")?.getAttribute("data-tkf-section") || "",
-      destinationPath: destination ? destination.pathname + destination.search : "",
-      clickTarget: target,
-      deviceCategory: deviceCategory()
+      pagePath: details.page_path,
+      elementKey: details.element_key,
+      elementLabel: details.element_label,
+      pageSection: details.page_section,
+      destinationPath: details.destination_path,
+      clickTarget: details.click_target,
+      deviceCategory: details.device_category
     };
   }
 
-  function send(event) {
+  function publishShopifyEvent(details) {
+    try {
+      var analytics = window.Shopify && window.Shopify.analytics;
+      if (!analytics) return false;
+      var publish = typeof analytics.publish === "function" ? analytics.publish : analytics.publishCustomEvent;
+      if (typeof publish !== "function") return false;
+      var result = publish.call(analytics, "tkf:global_click", Object.assign({
+        ga4EventName: "global_click",
+        component: "global_click",
+        pageLocation: window.location.href
+      }, details));
+      if (result && typeof result.catch === "function") result.catch(function () {});
+      return true;
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function sendDirect(details) {
     if (!config || !config.endpoint) return;
+    var event = directEvent(details);
     var body = JSON.stringify({ source: config.source || "shopify", event: event });
     var headers = { "Content-Type": "application/json" };
     if (config.ingestKey) headers["x-tkf-ingest-key"] = config.ingestKey;
@@ -79,6 +110,11 @@
       .catch(function () {});
   }
 
+  function send(details) {
+    if (publishShopifyEvent(details)) return;
+    sendDirect(details);
+  }
+
   function init(options) {
     if (config) return;
     config = Object.assign({ endpoint: DEFAULT_ENDPOINT, source: "shopify" }, options || {});
@@ -87,7 +123,7 @@
         ? event.target.closest("a,button,[role='button'],[data-tkf-track]")
         : null;
       if (!target || target.hasAttribute("data-tkf-ignore")) return;
-      send(eventFor(target));
+      send(eventDetails(target));
     }, true);
   }
 

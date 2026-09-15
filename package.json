@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test:tracking": "node scripts/test-fkk-shopify-signal.mjs",
+    "test:tracking": "node scripts/test-fkk-shopify-signal.mjs && node scripts/test-shopify-signal-identity.mjs",
     "test:worker-ingest": "node --experimental-strip-types scripts/test-shopify-pixel-ingest.mjs",
     "test:blk-filter": "node --experimental-strip-types scripts/test-blk-traffic-filter.mjs",
     "sync:ga4-to-cloudflare": "node scripts/sync-ga4-to-cloudflare.mjs",

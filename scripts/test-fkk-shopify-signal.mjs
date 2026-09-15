@@ -96,13 +96,17 @@ emit('checkout_completed', {
 
 await waitFor(() => harness.requests.length === 5, '完整链路没有产生预期的 5 条 Signal 事件。');
 const signalEvents = harness.requests.map((request) => request.payload.event);
-assert.deepEqual(signalEvents.map((event) => event.eventName), ['page_view', 'global_click', 'add_to_cart', 'begin_checkout', 'purchase']);
+assert.deepEqual(
+  signalEvents.map((event) => event.eventName).sort(),
+  ['page_view', 'global_click', 'add_to_cart', 'begin_checkout', 'purchase'].sort(),
+);
 assert.equal(new Set(signalEvents.map((event) => event.visitorId)).size, 1, '同一 Shopify clientId 被拆成多个访客。');
-assert.equal(signalEvents[0].visitorId, `shopify_client_${clientId}`);
+assert.ok(signalEvents.every((event) => event.visitorId === `shopify_client_${clientId}`));
 assert.ok(signalEvents.every((event) => event.metadata.identitySource === 'shopify_client_id'));
-assert.match(signalEvents.at(-1).customerIdHash, /^[a-f0-9]{64}$/);
-assert.match(signalEvents.at(-1).metadata.orderIdHash, /^[a-f0-9]{64}$/);
-assert.equal(signalEvents.at(-1).metadata.itemCount, 2);
+const purchaseEvent = signalEvents.find((event) => event.eventName === 'purchase');
+assert.match(purchaseEvent.customerIdHash, /^[a-f0-9]{64}$/);
+assert.match(purchaseEvent.metadata.orderIdHash, /^[a-f0-9]{64}$/);
+assert.equal(purchaseEvent.metadata.itemCount, 2);
 const serializedRequests = JSON.stringify(harness.requests.map((request) => request.payload));
 assert.equal(serializedRequests.includes('customer-42'), false, 'Signal 载荷泄露了原始客户 ID。');
 assert.equal(serializedRequests.includes('order-9001'), false, 'Signal 载荷泄露了原始订单 ID。');

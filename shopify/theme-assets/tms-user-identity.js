@@ -1,4 +1,4 @@
-/* TMS Signal consent-aware pseudonymous identity transport. */
+/* Legacy fallback retained for rollback only. The active TMS theme no longer loads this file. */
 (function (window, document) {
   "use strict";
 

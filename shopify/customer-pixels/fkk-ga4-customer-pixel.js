@@ -75,12 +75,31 @@ function deviceCategory(event, explicitValue = '') {
   return 'desktop';
 }
 
+async function signalEventId(eventName, event, identity, fields) {
+  const windowSeconds = eventName === 'page_view' ? 300 : eventName === 'global_click' ? 5 : 0;
+  if (!windowSeconds) {
+    return `shopify_${eventName}_${safeIdentifier(event.id, String(Date.now())).slice(0, 120)}`;
+  }
+  const occurredAt = Date.parse(event.timestamp || '');
+  const bucket = Math.floor((Number.isFinite(occurredAt) ? occurredAt : Date.now()) / (windowSeconds * 1000));
+  const signature = [
+    identity.visitorId,
+    eventName,
+    fields.pagePath || pagePath(event),
+    fields.elementKey || '',
+    fields.elementLabel || '',
+    bucket,
+  ].join('|');
+  const signatureHash = await sha256(signature);
+  return `shopify_${eventName}_dedupe_${signatureHash.slice(0, 24)}_${bucket.toString(36)}`;
+}
+
 async function sendSignal(eventName, event, fields = {}, metadata = {}, rawCustomerId = '') {
   const identity = signalIdentity(event);
-  const eventSeed = safeIdentifier(event.id, String(Date.now())).slice(0, 120);
+  const windowSeconds = eventName === 'page_view' ? 300 : eventName === 'global_click' ? 5 : 0;
   const customerIdHash = await sha256(rawCustomerId || init?.data?.customer?.id || '');
   const signalEvent = {
-    eventId: `shopify_${eventName}_${eventSeed}`,
+    eventId: await signalEventId(eventName, event, identity, fields),
     visitorId: identity.visitorId,
     eventName,
     occurredAt: event.timestamp || new Date().toISOString(),
@@ -91,7 +110,11 @@ async function sendSignal(eventName, event, fields = {}, metadata = {}, rawCusto
     destinationPath: safeText(fields.destinationPath, 2000),
     clickTarget: safeText(fields.clickTarget, 120),
     deviceCategory: deviceCategory(event, fields.deviceCategory),
-    metadata: { ...metadata, identitySource: identity.identitySource },
+    metadata: {
+      ...metadata,
+      identitySource: identity.identitySource,
+      ...(windowSeconds ? { dedupeWindowSeconds: windowSeconds } : {}),
+    },
   };
   if (customerIdHash) signalEvent.customerIdHash = customerIdHash;
   await fetch(FKK_SIGNAL_EVENT_ENDPOINT, {

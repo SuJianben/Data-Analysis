@@ -1,6 +1,6 @@
 /*
- * TKF Signal user identity transport
- * Receives normalized storefront events and sends consent-aware pseudonymous records.
+ * Legacy independent-site fallback only.
+ * Shopify storefronts publish events to the connected Customer Pixel so clientId remains canonical.
  */
 (function (window, document) {
   "use strict";

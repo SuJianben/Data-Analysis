@@ -221,9 +221,11 @@ USER_EVENT_ALLOWED_ORIGINS=https://turkforma.com,https://www.turkforma.com
 
 ### Shopify 快速接入
 
-项目内的 `public/tkf-user-identity.js` 是身份与传输模块。正式店铺由现有全局点击脚本调用它，不再注册第二个点击监听器；主题只需提供 HTTPS 接口地址和 Shopify Liquid 生成的客户哈希。
+Shopify 店铺以 Customer Pixel 的 `event.clientId` 作为匿名访客主标识；登录或购买时发现的客户 ID 只在 Pixel 内转成 SHA-256 哈希。页面浏览、点击、加购、开始结账和购买因此能够进入同一条用户轨迹，不再依赖主题与结账页之间共享 localStorage。
 
-Shopify 自定义 Pixel 还需追加 `shopify/customer-pixels/tkf-signal-purchase-bridge.js`。该桥接订阅 `checkout_completed`，把完成购买写入同一用户事件链，只保存匿名访客标识、客户与订单的不可逆 SHA-256 哈希以及金额、币种、商品数量，不提交姓名、邮箱、电话或原始 ID。
+TKF 使用 `shopify/customer-pixels/tkf-signal-purchase-bridge.js` 作为完整 Signal 行为桥（文件名为兼容历史安装说明而保留）；TMS 与 FKK 分别使用 `tms-ga4-customer-pixel.js` 和 `fkk-ga4-customer-pixel.js`。这些 Pixel 对同页重复浏览采用 5 分钟窗口、对同按钮重复点击采用 5 秒窗口；加购、开始结账和购买始终逐条保留。
+
+主题点击脚本只负责通过 `Shopify.analytics.publish` 发布自定义点击，不再直接写入 Signal。`public/tkf-user-identity.js` 和 `shopify/theme-assets/tms-user-identity.js` 仅作为非 Shopify 或回滚兼容文件，不应与正式 Shopify Customer Pixel 同时承担写入职责。
 
 旧的 `public/tkf-user-tracker.js` 仍可用于没有现成全局点击脚本的独立站，初始化方式如下：
 
