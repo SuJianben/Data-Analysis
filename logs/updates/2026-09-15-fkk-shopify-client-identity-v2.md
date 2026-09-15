@@ -46,8 +46,11 @@
 - 生产面板已发布到 `https://tkf-signal.vercel.app`，生产构建与浏览器控制台检查通过。
 - 四个 Worker 均回报 `2026-09-15.identity-v2`：TKF `52319fee-f650-4716-824e-ba65a02afb25`、TMS `5756c778-dc59-43f1-b475-29b96bb4959c`、FKK `ff87143d-53f2-42f4-a4ee-c49aeaa9ad59`、BLK `cb0786b2-dc16-461b-a5b0-936ce90689ec`。
 - 线上再次验证身份来源不匹配的新版购买请求返回 403。
+- FKK 后台自定义 Pixel 已由同事更新；真实店铺页面请求确认新版 Pixel 已运行，`page_view`、关闭弹窗点击和搜索按钮点击使用完全一致的 `shopify_client_<clientId>`。
+- FKK 线上主主题已发布新版 `assets/fkk-global-click.js` 和 `snippets/fkk-user-identity-config.liquid`；发布后远端内容哈希与仓库版本一致，旧版内容保留在上一 Git 版本中，可回退。
+- FKK 的 GA4 `page_view` 请求已返回 204，衡量 ID `G-51EXGWMTDP` 发送正常。
 
 ## 遗留问题
 
-- Shopify 自定义 Pixel 没有可用于更新代码的 Admin API，仍需在 FKK 后台手动替换 `FKK GA4` 代码并保持已连接。
-- Pixel 更新完成后才能发布 FKK 主题点击脚本，随后等待下一笔自然订单做最终闭环验收。
+- Cloudflare D1 免费套餐当日行写入额度已耗尽，线上 Worker 当前返回 400；额度在次日 UTC 00:00（北京时间 08:00）重置前产生的新 Signal 事件不会落库。
+- D1 恢复写入后，需要再做一次真实浏览与点击落库检查，并等待下一笔自然订单验证购买前后完整轨迹，才能完成购买闭环验收。
