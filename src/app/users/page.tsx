@@ -19,7 +19,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
   return (
     <div className="page page-enter">
       <header className="page-heading compact-heading">
-        <div><span className="section-number">04 / USERS · {selectedSite.shortLabel}</span><h1>用户行为</h1><p>分别查看 {selectedSite.label} 匿名访客与登录客户的页面、按钮和商品互动。</p></div>
+        <div><span className="section-number">04 / USERS · {selectedSite.shortLabel}</span><h1>用户行为</h1><p>分别查看 {selectedSite.label} 匿名访客与已识别客户的页面、按钮和商品互动。</p></div>
       </header>
       <PageTrendDashboard
         title="用户活动趋势"

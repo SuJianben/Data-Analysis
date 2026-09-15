@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { UserSummaryRow } from "@/types/analytics";
 import { formatNumber } from "@/utils/format";
 import { Pagination } from "@/components/data-table/pagination";
+import { userIdentityDescription, userIdentityTypeLabel } from "@/features/users/identity";
 
 const PAGE_SIZE = 20;
 
@@ -49,7 +50,7 @@ export function UserTable({ rows, rangeQuery }: { rows: UserSummaryRow[]; rangeQ
           <tbody>
             {pageRows.map((row) => (
               <tr key={row.identityKey}>
-                <td><strong>{row.identityType === "customer" ? "登录客户" : "匿名访客"} {row.identityId.slice(0, 10)}</strong><small>{row.identityType === "customer" ? "脱敏账号标识" : "浏览器匿名标识"}</small></td>
+                <td><strong>{userIdentityTypeLabel(row.identityType)} {row.identityId.slice(0, 10)}</strong><small>{userIdentityDescription(row.identityType)}</small></td>
                 <td>{formatDate(row.firstSeenAt)}</td>
                 <td>{formatDate(row.lastSeenAt)}</td>
                 <td>{formatNumber(row.visitorCount)}</td>

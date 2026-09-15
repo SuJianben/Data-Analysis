@@ -20,7 +20,7 @@ export function UserEventTable({ rows }: { rows: UserEventRow[] }) {
               <td><strong>{row.elementLabel || row.elementKey || "—"}</strong><small>{row.pageSection || ""}</small></td>
               <td className="target-cell" title={row.destinationPath}>{row.destinationPath || "—"}</td>
               <td>{row.deviceCategory || "unknown"}</td>
-              <td><strong>{row.customerIdHash ? "登录" : "匿名"}</strong><small>{row.visitorId.slice(0, 10)}</small></td>
+              <td><strong>{row.customerIdHash ? "已识别" : "匿名"}</strong><small>{row.visitorId.slice(0, 10)}</small></td>
             </tr>
           ))}
         </tbody>

@@ -1,248 +1,86 @@
-# FKK Customer Pixel：交给 Codex 的操作文档
+# FKK Customer Pixel v2：交给 Codex 的操作文档
 
-## 同事发送给 Codex 时需要附带的消息
+## 发送给 Codex 的材料
 
-请把本文件上传给 Codex，并在消息正文中明确发送下面这句话：
+请同时上传以下两个文件：
 
-> 请按照附件执行。我授权你在 FKK 的 Shopify 后台“设置 → 客户事件”中检查、创建、保存并连接名为 `FKK GA4` 的自定义 Pixel。操作范围仅限客户事件配置，不要访问订单、客户、付款或其他敏感数据；完成后请验证状态并向我汇报。
+- 本文档。
+- `fkk-ga4-customer-pixel.js`。
 
-只有上传文件、没有上面这句明确授权时，Codex 可能会把附件视为参考资料而不是操作授权。
+消息正文明确发送：
 
----
+> 请按照附件执行。我授权你在 FKK 的 Shopify 后台“设置 → 客户事件”中更新、保存并重新连接现有的 `FKK GA4` 自定义 Pixel。操作范围仅限客户事件配置，不要访问订单、客户、付款或其他敏感数据；完成后请验证状态并截图汇报。
 
-## 给 Codex 的执行任务
+## 一、目标
 
-### 一、目标
+将 FKK 现有 Customer Pixel 更新为统一身份链路版本：
 
-在 FKK Shopify 店铺创建并连接唯一的自定义 Customer Pixel，使以下事件发送到正式 GA4，并把完成购买事件同步到 FKK 数据分析面板：
+- 页面浏览、点击、加购、开始结账和购买统一使用 Shopify `clientId`。
+- 点击事件由主题通过 Shopify Analytics 发布，再由 Customer Pixel 同时发往 GA4 和 FKK Signal。
+- 客户与订单只上报 SHA-256 哈希，不发送原始编号。
+- `clientId` 异常缺失时明确标记兜底身份，供数据健康页面报警。
 
-- 加入购物车：`add_to_cart`
-- 开始结账：`begin_checkout`
-- 完成购买：`purchase`
+## 二、必须核对的信息
 
-### 二、必须核对的店铺信息
+- Shopify 后台店铺标识：`fbed87-94`。
+- 正式域名：`footballkituk.com`。
+- GA4 媒体资源 ID：`553763610`。
+- GA4 衡量 ID：`G-51EXGWMTDP`。
+- FKK Worker：`https://fkk-signal-user-events.trustmereview.workers.dev/v1/events`。
+- Pixel 名称：`FKK GA4`。
 
-- Shopify 店铺地址：`fbed87-94.myshopify.com`
-- Shopify 后台店铺标识：`fbed87-94`
-- 正式域名：`footballkituk.com`
-- GA4 媒体资源 ID：`553763610`
-- 正式 GA4 衡量 ID：`G-51EXGWMTDP`
-- FKK Worker：`https://fkk-signal-user-events.trustmereview.workers.dev/v1/events`
-- Pixel 名称：`FKK GA4`
+如果后台 URL 不包含 `/store/fbed87-94/`，立即停止。
 
-如果当前后台并非 `fbed87-94`，立即停止，不要在其他店铺创建 Pixel。
+## 三、执行边界
 
-### 三、执行边界
+- 只操作 `设置 → 客户事件 → 自定义像素`。
+- 更新现有 `FKK GA4`，不要新建同名 Pixel。
+- 不访问订单、客户、付款或结账记录。
+- 不修改主题，不安装 Google 应用，不创建 GTM。
+- 不添加其他 GA4 衡量 ID。
+- 不把 Shopify Admin Token、账号或客户资料写进代码。
 
-- 只允许操作 `设置 → 客户事件 → 自定义像素`。
-- 不访问订单、客户、付款、结账记录等敏感数据。
-- 不修改 `theme.liquid` 或其他主题文件；页面浏览与点击埋点已经在主题中配置好。
-- 不安装 Shopify Google 应用，不新建 GTM，不添加其他 GA4 衡量 ID。
-- 不删除或断开已有 Pixel。
-- 不创建重复的 `FKK GA4`：如果已存在，先打开检查代码与连接状态；内容正确时只连接，不重复创建。
-- 不向代码中添加 Shopify Admin API Token、邮箱、密码或任何客户资料。
+## 四、操作步骤
 
-### 四、后台操作步骤
+1. 打开 `https://admin.shopify.com/store/fbed87-94/settings/customer_events`。
+2. 打开现有 `FKK GA4` 自定义 Pixel。
+3. 记录当前隐私设置；除非代码保存要求，不修改隐私设置。
+4. 用附件 `fkk-ga4-customer-pixel.js` 的全文替换编辑器中的旧代码。
+5. 保存代码。
+6. 如果保存后状态变成未连接，重新连接 Pixel。
+7. 重新打开 Pixel 并回读，确认保存内容没有被截断。
 
-1. 打开：`https://admin.shopify.com/store/fbed87-94/settings/customer_events`。
-2. 核对当前店铺是 FKK，URL 中包含 `/store/fbed87-94/`。
-3. 进入“自定义像素 / Custom pixels”。
-4. 检查是否已经存在名为 `FKK GA4` 的 Pixel：
-   - 如果不存在，点击“添加自定义像素 / Add custom pixel”，名称填写 `FKK GA4`。
-   - 如果已存在，不创建第二个，打开现有 Pixel 检查并更新为本文代码。
-5. 客户隐私建议：
-   - 权限选择“需要 / Required”。
-   - 用途只选择“分析 / Analytics”。
-   - 数据销售选择“不属于数据销售”。
-   - 如果店铺已有明确的公司合规策略与此不同，不要自行覆盖，先向用户报告。
-6. 将下方“完整 Pixel 代码”原样粘贴进代码编辑器。
-7. 点击“保存 / Save”。
-8. 保存成功后点击“连接像素 / Connect pixel”。
-9. 在 Shopify 的连接确认窗口中核对名称仍为 `FKK GA4`，然后完成连接。
+## 五、保存后检查
 
-### 五、完整 Pixel 代码
+在编辑器中搜索并确认：
 
-```javascript
-// FKK GA4 ecommerce + Signal purchase - Shopify Customer Events
-const GA4_MEASUREMENT_ID = 'G-51EXGWMTDP';
-const FKK_SIGNAL_EVENT_ENDPOINT = 'https://fkk-signal-user-events.trustmereview.workers.dev/v1/events';
-const FKK_SIGNAL_VISITOR_KEY = 'fkk_signal_visitor_id';
-const FKK_SIGNAL_SESSION_KEY = 'fkk_signal_session_id';
+- 只有 `G-51EXGWMTDP`，没有其他 `G-` 衡量 ID。
+- Worker 地址以 `fkk-signal-user-events` 开头。
+- 载荷是 `siteKey: 'fkk'` 和 `source: 'shopify_pixel:fkk'`。
+- 存在 `page_viewed`、`product_added_to_cart`、`checkout_started`、`checkout_completed`、`all_custom_events` 五个订阅。
+- 存在 `event.clientId`、`shopify_client_` 和 `identitySource`。
+- 不再存在 `fkk_signal_visitor_id`、`browser.localStorage`、`browser.sessionStorage` 或 `hmac_sha256`。
+- `gtag('config', ...)` 保留 `send_page_view: false`，页面浏览由订阅统一发送。
 
-const script = document.createElement('script');
-script.setAttribute('src', 'https://www.googletagmanager.com/gtag/js?id=' + GA4_MEASUREMENT_ID);
-script.setAttribute('async', '');
-document.head.appendChild(script);
-
-window.dataLayer = window.dataLayer || [];
-function gtag(){dataLayer.push(arguments);}
-gtag('js', new Date());
-gtag('config', GA4_MEASUREMENT_ID, { send_page_view: false });
-
-function eventPage(event) {
-  return {
-    page_location: event.context?.document?.location?.href,
-    page_title: event.context?.document?.title,
-    page_referrer: event.context?.document?.referrer || undefined,
-  };
-}
-
-function moneyAmount(money) {
-  const amount = Number(money?.amount ?? money);
-  return Number.isFinite(amount) ? amount : undefined;
-}
-
-function checkoutItems(checkout) {
-  return (checkout?.lineItems || []).map((lineItem) => {
-    const variant = lineItem.variant || lineItem.merchandise || {};
-    return {
-      item_id: variant.sku || variant.id || lineItem.id,
-      item_name: lineItem.title || variant.product?.title,
-      item_variant: variant.title,
-      price: moneyAmount(variant.price),
-      quantity: Number(lineItem.quantity || 1),
-    };
-  });
-}
-
-function safeIdentifier(value, fallback) {
-  const normalized = String(value || '').replace(/[^a-zA-Z0-9._:-]/g, '_').slice(0, 140);
-  return normalized.length >= 8 ? normalized : fallback;
-}
-
-async function sha256(value) {
-  if (!value) return '';
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(value)));
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
-}
-
-async function storageValue(storage, key) {
-  try { return (await storage.getItem(key)) || ''; } catch (_error) { return ''; }
-}
-
-function deviceCategory(event) {
-  const userAgent = String(event.context?.navigator?.userAgent || '').toLowerCase();
-  if (/ipad|tablet|playbook|silk/.test(userAgent)) return 'tablet';
-  if (/mobile|iphone|ipod|android/.test(userAgent)) return 'mobile';
-  return 'desktop';
-}
-
-async function sendSignalPurchase(event) {
-  const checkout = event.data?.checkout;
-  if (!checkout) return;
-  const storedVisitorId = await storageValue(browser.localStorage, FKK_SIGNAL_VISITOR_KEY);
-  const storedSessionId = await storageValue(browser.sessionStorage, FKK_SIGNAL_SESSION_KEY);
-  const fallbackSeed = safeIdentifier(event.clientId || event.id, 'shopify_event');
-  const visitorId = safeIdentifier(storedVisitorId, `visitor_shopify_${fallbackSeed}`);
-  const sessionId = safeIdentifier(storedSessionId, `session_shopify_${fallbackSeed}`);
-  const [customerIdHash, orderIdHash] = await Promise.all([
-    sha256(checkout.order?.customer?.id || checkout.customer?.id || ''),
-    sha256(checkout.order?.id || ''),
-  ]);
-  const lineItems = Array.isArray(checkout.lineItems) ? checkout.lineItems : [];
-  const itemCount = lineItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
-  const purchaseEvent = {
-    eventId: safeIdentifier(`shopify_purchase_${event.id}`, `purchase_${fallbackSeed}`),
-    visitorId,
-    sessionId,
-    eventName: 'purchase',
-    occurredAt: event.timestamp || new Date().toISOString(),
-    pagePath: event.context?.document?.location?.pathname || '/checkouts/thank-you',
-    pageSection: 'checkout',
-    clickTarget: 'checkout_completed',
-    deviceCategory: deviceCategory(event),
-    metadata: {
-      currency: checkout.currencyCode || '',
-      value: Number(checkout.totalPrice?.amount || 0),
-      itemCount,
-      orderIdHash,
-    },
-  };
-  if (customerIdHash) purchaseEvent.customerIdHash = customerIdHash;
-  await fetch(FKK_SIGNAL_EVENT_ENDPOINT, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-    body: JSON.stringify({ siteKey: 'fkk', source: 'shopify_pixel:fkk', event: purchaseEvent }),
-    keepalive: true,
-  });
-}
-
-analytics.subscribe('product_added_to_cart', (event) => {
-  const cartLine = event.data.cartLine;
-  const merchandise = cartLine?.merchandise || {};
-  const price = moneyAmount(merchandise.price);
-  const quantity = Number(cartLine?.quantity || 1);
-  gtag('event', 'add_to_cart', {
-    ...eventPage(event),
-    currency: merchandise.price?.currencyCode,
-    value: price === undefined ? undefined : price * quantity,
-    items: [{
-      item_id: merchandise.sku || merchandise.id,
-      item_name: merchandise.product?.title,
-      item_variant: merchandise.title,
-      price,
-      quantity,
-    }],
-  });
-});
-
-analytics.subscribe('checkout_started', (event) => {
-  const checkout = event.data.checkout;
-  gtag('event', 'begin_checkout', {
-    ...eventPage(event),
-    currency: checkout?.currencyCode,
-    value: moneyAmount(checkout?.totalPrice),
-    items: checkoutItems(checkout),
-  });
-});
-
-analytics.subscribe('checkout_completed', (event) => {
-  const checkout = event.data.checkout;
-  const coupon = (checkout?.discountApplications || [])
-    .map((discount) => discount.title || discount.code)
-    .filter(Boolean)
-    .join(', ');
-  gtag('event', 'purchase', {
-    ...eventPage(event),
-    transaction_id: checkout?.order?.id,
-    value: moneyAmount(checkout?.totalPrice),
-    tax: moneyAmount(checkout?.totalTax),
-    shipping: moneyAmount(checkout?.shippingLine?.price),
-    currency: checkout?.currencyCode,
-    coupon: coupon || undefined,
-    items: checkoutItems(checkout),
-  });
-  sendSignalPurchase(event).catch(() => {});
-});
-```
-
-### 六、保存前必须检查
-
-在代码编辑器中搜索并确认：
-
-- `G-51EXGWMTDP` 存在，且没有其他 `G-` 衡量 ID。
-- Worker 地址以 `fkk-signal-user-events` 开头，不是 `tkf-` 或 `tms-`。
-- 载荷中是 `siteKey: 'fkk'`。
-- 来源是 `source: 'shopify_pixel:fkk'`。
-- 存在 `product_added_to_cart`、`checkout_started`、`checkout_completed` 三个订阅。
-- `gtag('config', ...)` 中保留 `send_page_view: false`，避免页面浏览重复统计。
-
-### 七、完成标准
+## 六、完成标准
 
 只有同时满足以下条件才算完成：
 
-1. 自定义像素列表里只存在一个 `FKK GA4`。
-2. 状态明确显示“已连接 / Connected”，不能只显示“已保存”。
-3. 回读 Pixel 代码，仍然包含正确的 GA4 ID、FKK Worker、`siteKey: 'fkk'` 和三个 Shopify 事件订阅。
-4. 没有修改主题、其他 Pixel 或其他店铺设置。
+1. 列表里仍然只有一个 `FKK GA4`。
+2. 状态显示“已连接 / Connected”。
+3. 回读代码包含五个订阅和统一身份字段。
+4. GA4 ID、Worker 地址和站点标识全部正确。
+5. 没有修改其他 Pixel、主题或店铺配置。
 
-完成后请向用户汇报：
+## 七、汇报格式
+
+完成后向用户说明：
 
 - 店铺标识是否为 `fbed87-94`。
-- Pixel 名称和连接状态。
-- 隐私权限最终设置。
-- 代码中确认到的 GA4 ID 与 Worker 地址。
+- Pixel 名称与连接状态。
+- 五个订阅是否齐全。
+- 是否确认不存在旧 localStorage 身份逻辑。
 - 是否发现重复 Pixel、保存报错或连接失败。
-- 提供显示 `FKK GA4` 和“已连接”的页面截图。
+- 提供显示 Pixel 名称、状态以及关键代码搜索结果的截图。
 
-不要声称已经检测到真实购买；真实购买验收需要等待下一笔订单，或者由原项目负责人进行不涉及真实付款的专用测试。
+真实购买归并仍需下一笔自然订单验证；不要用“保存成功”代替真实业务验收。

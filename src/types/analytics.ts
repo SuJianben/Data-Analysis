@@ -96,7 +96,7 @@ export type DateRangeOptions = {
 export type DataHealthStatus = "healthy" | "attention" | "critical";
 
 export type DataHealthCheck = {
-  key: "sync_freshness" | "data_continuity" | "field_quality" | "volume_change";
+  key: "sync_freshness" | "data_continuity" | "field_quality" | "identity_continuity" | "volume_change";
   name: string;
   description: string;
   status: DataHealthStatus;
@@ -135,6 +135,11 @@ export type DataHealthReport = {
     observedCount: number;
     invalidCount: number;
     validRate: number;
+  };
+  identity: {
+    purchaseCount: number;
+    linkedPurchaseCount: number;
+    fallbackPurchaseCount: number;
   };
   daily: DataHealthDailyPoint[];
   checks: DataHealthCheck[];

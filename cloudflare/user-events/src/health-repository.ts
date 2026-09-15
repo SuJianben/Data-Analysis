@@ -14,6 +14,11 @@ type LatestSyncRow = {
   periodEnd: string;
   rowCount: number;
 };
+type IdentityContinuityRow = {
+  purchaseCount: number;
+  linkedPurchaseCount: number;
+  fallbackPurchaseCount: number;
+};
 
 const DAY_MS = 86_400_000;
 
@@ -65,6 +70,7 @@ function buildChecks(
   delayHours: number | null,
   missingDates: string[],
   quality: DataHealthReport["quality"],
+  identity: DataHealthReport["identity"],
   daily: DataHealthDailyPoint[],
 ): DataHealthCheck[] {
   const syncStatus: DataHealthStatus = delayHours === null || delayHours > 60
@@ -85,6 +91,12 @@ function buildChecks(
   const volumeStatus: DataHealthStatus = baseline > 0 && current === 0
     ? "critical"
     : ratio !== null && (ratio < 0.5 || ratio > 2.5) ? "attention" : "healthy";
+  const fallbackRate = identity.purchaseCount
+    ? identity.fallbackPurchaseCount / identity.purchaseCount
+    : 0;
+  const identityStatus: DataHealthStatus = fallbackRate >= 0.25
+    ? "critical"
+    : identity.fallbackPurchaseCount > 0 ? "attention" : "healthy";
 
   return [
     {
@@ -117,6 +129,21 @@ function buildChecks(
       recommendation: qualityStatus === "healthy" ? "字段命名质量正常。" : "优先完善名称为空、not set、button、toggle 等元素的埋点语义。",
     },
     {
+      key: "identity_continuity",
+      name: "购买轨迹归并",
+      description: "检查购买事件是否使用稳定访客标识，并与购买前行为处于同一轨迹。",
+      status: identityStatus,
+      value: identity.purchaseCount
+        ? `${identity.linkedPurchaseCount} / ${identity.purchaseCount} 已串联`
+        : "暂无购买样本",
+      detail: identity.purchaseCount
+        ? `最近7天收到 ${identity.purchaseCount} 次购买，其中 ${identity.linkedPurchaseCount} 次存在同访客前序行为，${identity.fallbackPurchaseCount} 次使用兜底身份。`
+        : "最近7天没有购买事件，暂时无法验证购买轨迹归并。",
+      recommendation: identityStatus === "healthy"
+        ? "身份链路当前未发现兜底异常。"
+        : "检查 Shopify Customer Pixel 是否全程使用 clientId，避免依赖结账页存储读取。",
+    },
+    {
       key: "volume_change",
       name: "数据量波动",
       description: "将最近完整日与此前有数据日期的平均值比较。",
@@ -133,7 +160,7 @@ function buildChecks(
 export async function getDataHealthReport(env: Env, site: SiteKey = "tkf", now = new Date()): Promise<DataHealthReport> {
   const endDate = shiftDate(shanghaiDate(now), -1);
   const startDate = shiftDate(endDate, -6);
-  const [latestSyncResult, menuResult, globalResult, siteResult, userResult, menuQualityResult, globalQualityResult, userQualityResult] = await env.DB.batch([
+  const [latestSyncResult, menuResult, globalResult, siteResult, userResult, menuQualityResult, globalQualityResult, userQualityResult, identityResult] = await env.DB.batch([
     env.DB.prepare(`
       SELECT imported_at AS importedAt, period_start AS periodStart, period_end AS periodEnd, row_count AS rowCount
       FROM analytics_sync_runs WHERE site_key = ? AND status = 'success' ORDER BY imported_at DESC LIMIT 1
@@ -156,6 +183,26 @@ export async function getDataHealthReport(env: Env, site: SiteKey = "tkf", now =
       SELECT COUNT(*) AS total,
         COALESCE(SUM(CASE WHEN TRIM(visitor_id) = '' OR TRIM(event_name) = '' OR TRIM(page_path) = '' THEN 1 ELSE 0 END), 0) AS invalid
       FROM user_events WHERE site_key = ? AND occurred_at >= ? AND occurred_at < ?
+    `).bind(site, `${startDate}T00:00:00.000Z`, `${shiftDate(endDate, 1)}T00:00:00.000Z`),
+    env.DB.prepare(`
+      SELECT
+        COUNT(*) AS purchaseCount,
+        COALESCE(SUM(CASE WHEN EXISTS (
+          SELECT 1 FROM user_events AS earlier
+          WHERE earlier.site_key = purchase.site_key
+            AND earlier.visitor_id = purchase.visitor_id
+            AND earlier.event_name <> 'purchase'
+            AND earlier.occurred_at <= purchase.occurred_at
+        ) THEN 1 ELSE 0 END), 0) AS linkedPurchaseCount,
+        COALESCE(SUM(CASE WHEN
+          purchase.visitor_id LIKE 'visitor_shopify_%'
+          OR json_extract(purchase.metadata_json, '$.identitySource') = 'shopify_event_fallback'
+        THEN 1 ELSE 0 END), 0) AS fallbackPurchaseCount
+      FROM user_events AS purchase
+      WHERE purchase.site_key = ?
+        AND purchase.event_name = 'purchase'
+        AND purchase.occurred_at >= ?
+        AND purchase.occurred_at < ?
     `).bind(site, `${startDate}T00:00:00.000Z`, `${shiftDate(endDate, 1)}T00:00:00.000Z`),
   ]);
 
@@ -185,9 +232,15 @@ export async function getDataHealthReport(env: Env, site: SiteKey = "tkf", now =
     invalidCount,
     validRate: observedCount ? ((observedCount - invalidCount) / observedCount) * 100 : 100,
   };
+  const identityRow = identityResult.results[0] as IdentityContinuityRow | undefined;
+  const identity = {
+    purchaseCount: Number(identityRow?.purchaseCount || 0),
+    linkedPurchaseCount: Number(identityRow?.linkedPurchaseCount || 0),
+    fallbackPurchaseCount: Number(identityRow?.fallbackPurchaseCount || 0),
+  };
   const latestSync = (latestSyncResult.results[0] as LatestSyncRow | undefined) || null;
   const delayHours = hoursSince(latestSync?.importedAt || null, now);
-  const checks = buildChecks(latestSync, delayHours, missingDates, quality, daily);
+  const checks = buildChecks(latestSync, delayHours, missingDates, quality, identity, daily);
 
   return {
     overallStatus: overallStatus(checks),
@@ -207,6 +260,7 @@ export async function getDataHealthReport(env: Env, site: SiteKey = "tkf", now =
       delayHours,
     },
     quality,
+    identity,
     daily,
     checks,
   };

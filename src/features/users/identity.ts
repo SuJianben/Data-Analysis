@@ -32,5 +32,13 @@ export function parseUserIdentityKey(value: string): ParsedUserIdentity | null {
 
 export function userIdentityLabel(type: UserIdentityType, id: string) {
   const shortId = id.slice(0, 10);
-  return type === "customer" ? `登录客户 ${shortId}` : `匿名访客 ${shortId}`;
+  return `${userIdentityTypeLabel(type)} ${shortId}`;
+}
+
+export function userIdentityTypeLabel(type: UserIdentityType) {
+  return type === "customer" ? "已识别客户" : "匿名访客";
+}
+
+export function userIdentityDescription(type: UserIdentityType) {
+  return type === "customer" ? "脱敏客户标识" : "浏览器匿名标识";
 }

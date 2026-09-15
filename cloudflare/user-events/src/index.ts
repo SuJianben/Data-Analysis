@@ -4,7 +4,7 @@ import { getUserDeviceBreakdown, getUserEvents, getUserSummaries, getUserTrend, 
 import type { Env } from "./types";
 import { parseIdentityKey, parseUserEventPayload } from "./validation";
 import { parseDateRange } from "./date-range";
-import { isOpaqueShopifyPurchaseRequest } from "./shopify-pixel-ingest";
+import { isOpaqueShopifyPixelRequest } from "./shopify-pixel-ingest";
 import { isOpaqueShoplineEventRequest } from "./shopline-pixel-ingest";
 import { browserPayloadMatchesSite } from "./sites";
 
@@ -26,8 +26,8 @@ async function ingest(request: Request, env: Env) {
     if (hasBrowserAccess && !hasServerAccess && !browserPayloadMatchesSite(env.SERVICE_NAME, request.headers.get("Origin"), payload.siteKey)) {
       return json(request, env, { ok: false, error: "来源域名、站点与接收入口不匹配。" }, 403);
     }
-    if (!hasStandardAccess && !isOpaqueShopifyPurchaseRequest(request, payload) && !isOpaqueShoplineEventRequest(request, payload)) {
-      return json(request, env, { ok: false, error: "该隔离像素来源只允许提交经过校验的完成购买事件。" }, 403);
+    if (!hasStandardAccess && !isOpaqueShopifyPixelRequest(request, payload) && !isOpaqueShoplineEventRequest(request, payload)) {
+      return json(request, env, { ok: false, error: "该隔离像素来源只允许提交经过校验的站点事件。" }, 403);
     }
     const inserted = await saveEvents(env, payload.siteKey, payload.source, payload.events);
     return json(request, env, { ok: true, received: payload.events.length, inserted });
@@ -88,7 +88,12 @@ export default {
       return new Response(null, { status: 204, headers: corsHeaders(request, env) });
     }
     if (request.method === "GET" && url.pathname === "/health") {
-      return json(request, env, { ok: true, service: env.SERVICE_NAME, storage: "cloudflare-d1" });
+      return json(request, env, {
+        ok: true,
+        service: env.SERVICE_NAME,
+        storage: "cloudflare-d1",
+        schemaVersion: "2026-09-15.identity-v2",
+      });
     }
     const analyticsResponse = await handleAnalyticsRequest(request, env, url.pathname);
     if (analyticsResponse) return analyticsResponse;

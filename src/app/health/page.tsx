@@ -16,7 +16,7 @@ export default async function HealthPage({ searchParams }: { searchParams: Promi
         <div>
           <span className="section-number">05 / DATA HEALTH · {selectedSite.shortLabel}</span>
           <h1>数据健康监控</h1>
-          <p>自动检查 {selectedSite.label} 的同步时效、数据连续性、关键字段质量和数据量异常。</p>
+          <p>自动检查 {selectedSite.label} 的同步时效、数据连续性、关键字段质量、购买轨迹归并和数据量异常。</p>
         </div>
       </header>
       <HealthDashboard report={report} />

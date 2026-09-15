@@ -110,23 +110,72 @@
     attempt();
   }
 
-  function send(params) {
-    if (window.FKKSignalIdentity && typeof window.FKKSignalIdentity.track === "function") {
-      window.FKKSignalIdentity.track("global_click", params);
-    }
-    sendGa4("global_click", params);
-    if (params.page_section === "navigation" || params.page_section === "header") {
-      sendGa4("header_navigation_click", {
-        menu_name: params.element_label || "(unnamed menu)",
-        menu_key: params.element_key,
-        parent_menu_name: "",
-        menu_level: "1",
-        menu_action: params.click_target === "toggle" ? "toggle" : "navigate",
-        navigation_location: params.page_section,
-        click_target: params.destination_path,
-        device_category: params.device_category
+  function publishOne(publish, eventName, payload) {
+    var result = publish.call(window.Shopify.analytics, eventName, payload);
+    if (result && typeof result.catch === "function") result.catch(function () {});
+  }
+
+  function publishShopifyEvent(params) {
+    try {
+      var analytics = window.Shopify && window.Shopify.analytics;
+      if (!analytics) return false;
+      var publish = typeof analytics.publish === "function" ? analytics.publish : analytics.publishCustomEvent;
+      if (typeof publish !== "function") return false;
+      publishOne(publish, "fkk:global_click", {
+        ga4EventName: "global_click",
+        component: "global_click",
+        page_path: params.page_path,
+        element_key: params.element_key,
+        element_label: params.element_label,
+        page_section: params.page_section,
+        destination_path: params.destination_path,
+        click_target: params.click_target,
+        device_category: params.device_category,
+        pageLocation: window.location.href
       });
+      if (params.page_section === "navigation" || params.page_section === "header") {
+        publishOne(publish, "fkk:header_navigation_click", {
+          ga4EventName: "header_navigation_click",
+          menu_name: params.element_label || "(unnamed menu)",
+          menu_key: params.element_key,
+          parent_menu_name: "",
+          menu_level: "1",
+          menu_action: params.click_target === "toggle" ? "toggle" : "navigate",
+          navigation_location: params.page_section,
+          click_target: params.destination_path,
+          device_category: params.device_category,
+          pageLocation: window.location.href
+        });
+      }
+      return true;
+    } catch (_error) {
+      return false;
     }
+  }
+
+  function send(params) {
+    var started = Date.now();
+    function attempt() {
+      if (publishShopifyEvent(params)) return;
+      if (Date.now() - started < 10000) {
+        window.setTimeout(attempt, 150);
+        return;
+      }
+      sendGa4("global_click", params);
+      if (params.page_section === "navigation" || params.page_section === "header") {
+        sendGa4("header_navigation_click", {
+          menu_name: params.element_label || "(unnamed menu)",
+          menu_key: params.element_key,
+          parent_menu_name: "",
+          menu_level: "1",
+          menu_action: params.click_target === "toggle" ? "toggle" : "navigate",
+          navigation_location: params.page_section,
+          click_target: params.destination_path,
+          device_category: params.device_category
+        });
+      }
+    }
+    attempt();
   }
 
   document.addEventListener("click", function (event) {
