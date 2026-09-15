@@ -61,10 +61,12 @@
 - 本地重复写入实测：相同 `source + event_id` 连续提交两次，最终只保存 1 行，测试数据已删除。
 - 四个线上 Worker 已发布，健康接口均返回 `2026-09-15.write-policy-v1`。
 - 线上 FKK 兜底页面事件实测返回 `inserted: 0`、`filtered: 1`，没有消耗 D1 行写入。
+- Vercel 生产环境已发布；线上 `tkf-user-tracker.js` 与仓库文件 SHA-256 完全一致，并包含 `tkf:global_click` 发布逻辑。
 
 ## 发布状态
 
 - Cloudflare Worker：已发布。
+- Vercel 面板与 TKF 公共点击脚本：已发布。
 - 远程 D1 索引迁移：未执行。Cloudflare 返回免费套餐当日行写入额度已耗尽；本地迁移已验证，待 UTC 00:00（北京时间次日 08:00）额度重置后执行。
 - Shopify Customer Pixel 与 TMS 主题资产：仓库代码已就绪，仍需在各站后台替换或发布后才会在线生效。
 
