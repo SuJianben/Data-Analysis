@@ -245,7 +245,8 @@ Shopify 自定义 Pixel 还需追加 `shopify/customer-pixels/tkf-signal-purchas
 
 BLK 使用两个职责分离的脚本：
 
-- `shopline/custom-code/blk-signal-publisher.js`：运行在店铺页面，在 SHOPLINE 客户隐私 API 允许后记录页面与可交互元素，并发布自定义客户事件。
+- `public/integrations/shopline/blk-signal-publisher.js`：公开托管的唯一业务实现，由 SHOPLINE Script Tag 在店铺页面加载；在客户隐私 API 允许后记录可交互元素并发布自定义客户事件。
+- `shopline/custom-code/blk-signal-publisher.js`：后台手动安装的备用加载器，仅加载上述公开脚本，不重复维护业务逻辑。
 - `shopline/customer-events/blk-ga4-signal-pixel.js`：用于替换已有 `Google_Analytic` 像素代码，订阅 SHOPLINE 标准电商事件、菜单和全局点击，并把完成购买写入 BLK 用户行为链。
 
 不要新建第二个 GA4 像素，否则会造成重复统计。SHOPLINE 安装步骤参见 `docs/handoffs/BLK-SHOPLINE-埋点接入交接.md`。

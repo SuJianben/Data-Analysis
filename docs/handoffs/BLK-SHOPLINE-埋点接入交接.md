@@ -26,14 +26,22 @@
 - 将脱敏后的用户行为和购买归因数据写入 BLK Worker；
 - 不采集姓名、邮箱、电话、地址或原始订单号。
 
-## 第二步：新增店铺页面 Custom Code
+## 第二步：接入店铺页面发布器
+
+正式环境优先通过 SHOPLINE Script Tag API 加载以下唯一脚本，不再把整段逻辑复制到后台：
+
+- `https://tkf-signal.vercel.app/integrations/shopline/blk-signal-publisher.js`
+
+这样后续修复埋点时只需更新项目中的公开脚本，不需要再次进入 SHOPLINE 后台粘贴完整代码。
+
+如果 Script Tag API 不可用，再使用以下后台手动方式：
 
 1. 打开 SHOPLINE 后台的“应用 → Custom Code”。
 2. 新建代码，名称建议使用 `BLK Signal Publisher`。
 3. 作用页面选择“所有页面”，设备选择“桌面端和移动端”，插入位置选择页面底部。
-4. 将 [blk-signal-publisher.js](../../shopline/custom-code/blk-signal-publisher.js) 的内容放入 `<script>...</script>` 后保存并启用。
+4. 将 [blk-signal-publisher.js](../../shopline/custom-code/blk-signal-publisher.js) 的加载器内容放入 `<script>...</script>` 后保存并启用。
 
-该脚本负责在用户允许追踪后采集页面浏览、菜单点击和全局点击，并通过 SHOPLINE 自定义事件把数据交给客户事件 Pixel。
+公开脚本负责在用户允许追踪后采集菜单点击和全局点击，并通过 SHOPLINE 自定义事件把数据交给客户事件 Pixel。后台加载器仅负责载入公开脚本，不包含重复业务逻辑。
 
 ## 第三步：建立 GA4 自定义维度
 
