@@ -5,6 +5,7 @@ import "@/styles/dashboard-motion.css";
 import "@/styles/dashboard-chart-motion.css";
 import "@/styles/dashboard-ai-motion.css";
 import { AppShell } from "@/components/app-shell/app-shell";
+import { ensureRuntimeSnapshotFresh } from "@/services/database/runtime-snapshot";
 
 export const metadata: Metadata = {
   title: "多站点数据分析 · 数据分析工作台",
@@ -16,7 +17,8 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  await ensureRuntimeSnapshotFresh();
   return (
     <html lang="zh-CN">
       <body><AppShell>{children}</AppShell></body>

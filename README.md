@@ -1,6 +1,8 @@
 # 多站点数据分析
 
-这是一个支持 TKF、TMS、FKK 和 BLK 站点隔离的数据同步、菜单报表、用户行为和 AI 分析工作台。TKF、TMS、FKK 来自 Shopify，BLK 来自 SHOPLINE。线上数据保存到 Cloudflare D1，本机仍可使用 SQLite 进行开发。长期凭据只保存在本机 `.env.local`，临时令牌只参与当前请求，两者都不会写入数据库。
+这是一个支持 TKF、TMS、FKK、BLK 和 DTK 站点隔离的数据同步、菜单报表、用户行为和 AI 分析工作台。TKF、TMS、FKK 来自 Shopify，BLK 和 DTK 来自 SHOPLINE。本机 SQLite 是主数据库；Vercel 负责 HTTPS 接收、事件队列和只读展示，Cloudflare Worker KV 只负责中转压缩后的只读快照。Cloudflare D1 暂时保留为迁移兼容与回退，不再承担主库职责。
+
+正式面板地址：`https://multi-site-analytics.vercel.app`
 
 ## 启动
 
@@ -23,16 +25,20 @@ npm start
 复制 `.env.example` 为 `.env.local`，按需填写：
 
 - `GA4_PROPERTY_ID`：TKF 的 GA4 属性 ID（兼容旧配置）
-- `TMS_GA4_PROPERTY_ID`、`FKK_GA4_PROPERTY_ID`、`BLK_GA4_PROPERTY_ID`：对应站点的 GA4 属性 ID
+- `TMS_GA4_PROPERTY_ID`、`FKK_GA4_PROPERTY_ID`、`BLK_GA4_PROPERTY_ID`、`DTK_GA4_PROPERTY_ID`：对应站点的 GA4 属性 ID
 - `GA4_ACCESS_TOKEN`：可选；仅作为 OAuth Refresh Token 以外的临时认证方式
 - `GOOGLE_OAUTH_CLIENT_ID`、`GOOGLE_OAUTH_CLIENT_SECRET`、`GOOGLE_OAUTH_REFRESH_TOKEN`：GA4 本机 OAuth 长期认证
 - `GOOGLE_APPLICATION_CREDENTIALS`：GA4 服务账号 JSON 的本机路径，作为备用认证方式
 - `CLARITY_API_TOKEN`：可选；配置后可供 Clarity 同步接口使用
 - `USER_EVENT_INGEST_KEY`：可选；设置后，用户事件接口要求请求头 `x-tkf-ingest-key` 匹配
 - `USER_EVENT_ALLOWED_ORIGINS`：允许从浏览器提交事件的店铺来源，多个来源用英文逗号分隔
-- `USER_EVENT_FORWARD_URL`、`USER_EVENT_FORWARD_KEY`：可选；让 HTTPS 接入层把事件转发到持久化服务器
-- `USER_EVENT_API_URL`、`USER_EVENT_READ_KEY`：可选；让 Vercel 或本机面板从 Cloudflare Worker 读取用户事件
-- `TKF_DATABASE_PATH`：可选；指定 SQLite 持久化文件位置
+- `USER_EVENT_STORAGE_MODE`：本机使用 `local`，Vercel 使用 `queue`
+- `USER_EVENT_QUEUE_TOPIC`、`USER_EVENT_QUEUE_REGION`：Vercel 事件队列名称和固定区域
+- `LOCAL_QUEUE_TOKEN_URL`：本机自动化取得短期生产队列凭证的受保护接口
+- `ANALYTICS_READ_MODE=local`：面板以 SQLite 快照为数据源
+- `ANALYTICS_DATABASE_PATH`：可选；指定 SQLite 主库位置
+- `USER_EVENT_FORWARD_URL`、`USER_EVENT_API_URL`：Cloudflare Worker 事件代理与 KV 快照中转地址
+- `USER_EVENT_FORWARD_KEY`：事件代理和快照上传凭证；未单独设置读取密钥时也用于快照读取
 - `IMPORT_INGEST_KEY`：可选；设置后，标准化导入接口要求请求头 `x-tkf-import-key` 匹配
 - `AI_BASE_URL`：兼容 OpenAI Chat Completions 的接口根地址
 - `AI_API_KEY`：AI 接口密钥
@@ -99,9 +105,9 @@ npm start
 }
 ```
 
-### 本机自动同步到 Cloudflare D1
+### 本机主库自动同步
 
-`scripts/sync-ga4-to-cloudflare.mjs` 会先调用本机 `/api/sync/ga4`（由本机 OAuth 凭证访问 Google），再把菜单、站点和全局点击汇总发送到 Worker `/v1/analytics/import`。
+`scripts/run-local-sync.mjs` 会回收 Vercel 队列中的埋点事件、调用本机 `/api/sync/ga4` 同步五站最近 3 天，并发布新的只读 SQLite 快照。`scripts/sync-ga4-to-cloudflare.mjs` 只保留为旧命令兼容入口，不再上传 D1。
 
 新站点接入时，可以先预览缺少的事件级自定义维度，再由拥有 `analytics.edit` 权限的 OAuth 凭证一次性补齐：
 
@@ -110,26 +116,27 @@ npm run ga4:dimensions -- --site blk
 npm run ga4:dimensions -- --site blk --apply
 ```
 
-在本机 `.env.local` 或系统环境变量中配置：
+本机同步入口：
 
-```text
-TKF_ANALYTICS_IMPORT_URL=https://你的Worker地址/v1/analytics/import
-TKF_ANALYTICS_IMPORT_KEY=与 Worker SERVER_INGEST_KEY 相同的密钥
-LOCAL_SYNC_URL=http://localhost:3000/api/sync/ga4
+```bash
+npm run sync:events
+npm run sync:local
+npm run snapshot:publish
 ```
 
-分别同步 TKF、TMS、FKK 或 BLK 最近 3 天：
+分别同步 TKF、TMS、FKK、BLK 或 DTK 最近 3 天：
 
 ```bash
 npm run sync:tkf
 npm run sync:tms
 npm run sync:fkk
 npm run sync:blk
+npm run sync:dtk
 ```
 
-TKF 使用 `TKF_GA4_PROPERTY_ID`，TMS 使用 `TMS_GA4_PROPERTY_ID`，FKK 使用 `FKK_GA4_PROPERTY_ID`，BLK 使用 `BLK_GA4_PROPERTY_ID`。这里必须填写 GA4 的纯数字属性 ID，不能填写以 `G-` 开头的衡量 ID。兼容旧配置时，TKF 仍可读取 `GA4_PROPERTY_ID`。
+TKF 使用 `TKF_GA4_PROPERTY_ID`，TMS 使用 `TMS_GA4_PROPERTY_ID`，FKK 使用 `FKK_GA4_PROPERTY_ID`，BLK 使用 `BLK_GA4_PROPERTY_ID`，DTK 使用 `DTK_GA4_PROPERTY_ID`。这里必须填写 GA4 的纯数字属性 ID，不能填写以 `G-` 开头的衡量 ID。兼容旧配置时，TKF 仍可读取 `GA4_PROPERTY_ID`。
 
-面板顶部提供 7 天、30 天、90 天和自定义起止日期。时间范围通过 URL 在各页面间保留，并由 Worker/D1 实际过滤概览、菜单、全局点击、用户行为和 AI 数据集。
+面板顶部提供 7 天、30 天、90 天和自定义起止日期。时间范围通过 URL 在各页面间保留，并由 SQLite 实际过滤概览、菜单、全局点击、用户行为和 AI 数据集。
 
 “数据健康”页面固定检查最近7个完整自然日，包含：
 
@@ -167,6 +174,8 @@ node scripts/sync-ga4-to-cloudflare.mjs --start-date 2026-09-01 --end-date 2026-
 }
 ```
 
+分析结果按 `site + startDate + endDate` 持久化：Vercel 生产环境通过 Worker 写入 KV，本机写入 SQLite。重新打开或刷新相同站点、相同日期范围的 AI 分析页时会恢复最近一次结果，不同站点和日期范围互不覆盖。
+
 ### 用户行为事件接收
 
 `POST /api/events`
@@ -194,34 +203,37 @@ node scripts/sync-ga4-to-cloudflare.mjs --start-date 2026-09-01 --end-date 2026-
 
 面板的“用户行为”页面会分别展示匿名访客和已识别客户：匿名访客按浏览器标识汇总，已识别客户按客户哈希跨设备合并。一个浏览器只关联过一个客户时，识别前的匿名行为会安全归入该客户；共享浏览器出现多个客户时，无法确认归属的匿名行为仍单独保留，避免串号。“已识别客户”只表示事件带有脱敏客户标识，不代表访客一定登录过账号。当前 GA4 汇总报表不会自动产生用户级记录，需要站点把事件发送到此接口，或另行接入 GA4 BigQuery 事件导出。
 
-### Cloudflare Worker + D1
+### 本地 SQLite + Vercel 队列
 
-线上报表和用户事件以 Cloudflare D1 为唯一数据源，所有报表、用户和事件都按 `site=tkf`、`site=tms`、`site=fkk` 或 `site=blk` 隔离。Worker 地址不包含结尾斜杠：
+所有报表和用户事件在本地主库中按站点隔离。店铺把事件提交到 Vercel `/api/events`，Vercel 使用队列暂存；本机每 5 分钟消费一次，只有本地写入成功后才确认消息。普通事件合并到每小时完整同步后发布，购买事件在最近一次 5 分钟任务中优先发布；快照先压缩再写入 Cloudflare KV，供 Vercel 面板只读展示。
 
 ```text
-USER_EVENT_API_URL=https://你的Worker地址/v1
-USER_EVENT_READ_KEY=Cloudflare Worker 的只读密钥
+USER_EVENT_STORAGE_MODE=queue
+USER_EVENT_QUEUE_TOPIC=signal-user-events-v1
+USER_EVENT_QUEUE_REGION=fra1
+ANALYTICS_READ_MODE=local
+USER_EVENT_API_URL=https://你的快照Worker地址/v1
+USER_EVENT_FORWARD_KEY=与Worker一致的服务端密钥
 ```
 
-未配置 `USER_EVENT_API_URL` 时，本机继续读取 `data/analytics.db`，方便离线开发。Vercel 配置后，概览、菜单、全局点击、AI 数据集和用户行为都会读取 D1。
+Vercel 每 30 秒最多检查一次快照版本；发现版本变化后下载压缩快照，完成 SHA-256 和 SQLite 完整性校验，再原子切换读取连接。远程快照暂时不可用时继续使用随部署携带的最后有效快照，不再让页面直接报 500。
 
 ### Vercel HTTPS 接入层
 
-Shopify 页面只能向 HTTPS 地址稳定发送事件。Vercel 配置：
+Shopify 和 SHOPLINE 页面向 Vercel HTTPS 接入层发送事件。Vercel 配置：
 
 ```text
-USER_EVENT_FORWARD_URL=https://你的Worker地址/v1/events
-USER_EVENT_FORWARD_KEY=Cloudflare Worker 的服务端写入密钥
+USER_EVENT_STORAGE_MODE=queue
 USER_EVENT_ALLOWED_ORIGINS=https://turkforma.com,https://www.turkforma.com
 ```
 
-正式店铺可以直接提交到 Worker；Vercel 转发接口保留为兼容入口。两种方式最终都写入 D1，不会落到 Vercel 临时磁盘。
+正式店铺统一提交到 Vercel `/api/events`。事件先进入持久队列，本机离线时会保留并在恢复后继续消费；Vercel 临时磁盘不承担主存储。
 
 全局点击明细使用 Worker 端分页：页面只请求当前 20 条明细，搜索和设备筛选在 D1 查询中完成；趋势、设备构成和分布散点通过独立汇总接口读取完整时间范围，不受当前页影响。
 
 ### Shopify 快速接入
 
-Shopify 店铺以 Customer Pixel 的 `event.clientId` 作为匿名访客主标识；登录或购买时发现的客户 ID 只在 Pixel 内转成 SHA-256 哈希。页面浏览、点击、加购、开始结账和购买因此能够进入同一条用户轨迹，不再依赖主题与结账页之间共享 localStorage。
+Shopify 店铺以 Customer Pixel 的 `event.clientId` 作为匿名访客主标识。普通行为中发现的客户 ID 只在 Pixel 内转成 SHA-256 哈希；购买首包为了避免结账页结束前被异步哈希阻塞，改用平台事件号、匿名访客号和精简商品证据立即发送，不携带原始客户号或订单号。页面浏览、点击、加购、开始结账和购买因此能够进入同一条用户轨迹，不再依赖主题与结账页之间共享 localStorage。
 
 TKF 使用 `shopify/customer-pixels/tkf-signal-purchase-bridge.js` 作为完整 Signal 行为桥（文件名为兼容历史安装说明而保留）；TMS 与 FKK 分别使用 `tms-ga4-customer-pixel.js` 和 `fkk-ga4-customer-pixel.js`。这些 Pixel 对同页重复浏览采用 5 分钟窗口、对同按钮重复点击采用 5 秒窗口；加购、开始结账和购买始终逐条保留。
 
@@ -245,13 +257,14 @@ TKF 使用 `shopify/customer-pixels/tkf-signal-purchase-bridge.js` 作为完整 
 
 ### SHOPLINE 快速接入
 
-BLK 使用两个职责分离的脚本：
+BLK 和 DTK 各自使用两个职责分离的脚本：
 
 - `public/integrations/shopline/blk-signal-publisher.js`：公开托管的唯一业务实现，由 SHOPLINE Script Tag 在店铺页面加载；在客户隐私 API 允许后记录可交互元素并发布自定义客户事件。
 - `shopline/custom-code/blk-signal-publisher.js`：后台手动安装的备用加载器，仅加载上述公开脚本，不重复维护业务逻辑。
 - `shopline/customer-events/blk-ga4-signal-pixel.js`：用于替换已有 `Google_Analytic` 像素代码，订阅 SHOPLINE 标准电商事件、菜单和全局点击，并把完成购买写入 BLK 用户行为链。
+- DTK 对应文件使用同样分层：`dtk-signal-publisher.js` 和 `dtk-ga4-signal-pixel.js`，但事件名、站点标识和 GA4 衡量 ID 完全隔离。
 
-不要新建第二个 GA4 像素，否则会造成重复统计。SHOPLINE 安装步骤参见 `docs/handoffs/BLK-SHOPLINE-埋点接入交接.md`。
+不要新建第二个 GA4 像素，否则会造成重复统计。SHOPLINE 安装步骤参见 `docs/handoffs/BLK-SHOPLINE-埋点接入交接.md` 和 `docs/handoffs/DTK-SHOPLINE-客户事件接入交接.md`。
 
 ## 数据位置
 

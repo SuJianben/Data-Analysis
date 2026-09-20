@@ -511,6 +511,13 @@ a { color: inherit; text-decoration: none; }
 .user-table td strong, .user-event-table td strong { display: block; font-size: 12px; }
 .user-table td small, .user-event-table td small { display: block; margin-top: 4px; }
 .user-event-table { min-width: 1040px; }
+.purchase-evidence-cell { min-width: 280px; max-width: 390px; }
+.purchase-evidence-cell > strong { line-height: 1.45; }
+.purchase-evidence-cell > small { line-height: 1.45; }
+.purchase-evidence-badge { display: inline-flex; align-items: center; width: fit-content; margin-top: 7px; padding: 3px 7px; border: 1px solid currentColor; border-radius: 999px; font-size: 9px; font-weight: 700; letter-spacing: .02em; }
+.purchase-evidence-badge.is-complete { color: #188267; background: rgba(24,130,103,.07); }
+.purchase-evidence-badge.is-partial { color: #9b6519; background: rgba(155,101,25,.08); }
+.purchase-evidence-badge.is-review { color: #b64242; background: rgba(182,66,66,.07); }
 
 .heatmap-section { padding-top: 0; border-top-color: var(--ink); }
 .heatmap-tools { min-height: 80px; display: flex; gap: 24px; align-items: center; border-bottom: 1px solid var(--line); }
@@ -545,6 +552,9 @@ a { color: inherit; text-decoration: none; }
 @keyframes noticeIn { from { opacity: 0; transform: translateY(-5px); } }
 .notice-success { color: #155b43; background: #e0f3eb; border: 1px solid #b7dfd0; }
 .notice-error { color: #8b2f27; background: #f7e6e3; border: 1px solid #e8c0ba; }
+.data-source-notice { min-height: 420px; display: grid; place-content: center; justify-items: start; gap: 12px; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--line); }
+.data-source-notice h1 { margin: 0; font-size: clamp(30px, 4vw, 48px); letter-spacing: -.05em; }
+.data-source-notice p { max-width: 560px; margin: 0 0 8px; color: var(--muted); font-size: 13px; line-height: 1.7; }
 .source-panel { padding: 30px 0 36px; border-bottom: 1px solid var(--line); }
 .source-heading { display: grid; grid-template-columns: 44px 1fr auto; align-items: start; gap: 16px; margin-bottom: 28px; }
 .source-index { color: var(--blue); font: 700 10px/1.8 monospace; }

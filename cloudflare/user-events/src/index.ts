@@ -1,13 +1,15 @@
 import { corsHeaders, hasReadAccess, hasServerIngestAccess, isBrowserOriginAllowed, json } from "./http";
 import { handleAnalyticsRequest } from "./analytics-routes";
-import { getUserDeviceBreakdown, getUserEvents, getUserSummaries, getUserTrend, saveEvents } from "./repository";
+import { getUserDeviceBreakdown, getUserEvents, getUserSummaries, getUserTrend } from "./repository";
 import type { Env } from "./types";
 import { parseIdentityKey, parseUserEventPayload } from "./validation";
 import { parseDateRange } from "./date-range";
 import { isOpaqueShopifyPixelRequest } from "./shopify-pixel-ingest";
 import { isOpaqueShoplineEventRequest } from "./shopline-pixel-ingest";
 import { browserPayloadMatchesSite } from "./sites";
-import { applyEventWritePolicy } from "./event-write-policy";
+import { forwardUserEventPayload } from "./event-forwarder";
+import { handleSnapshotRequest } from "./snapshot-routes";
+import { handleAnalysisResultRequest } from "./analysis-result-routes";
 
 const MAX_BODY_BYTES = 256_000;
 
@@ -30,24 +32,30 @@ async function ingest(request: Request, env: Env) {
     if (!hasStandardAccess && !isOpaqueShopifyPixelRequest(request, payload) && !isOpaqueShoplineEventRequest(request, payload)) {
       return json(request, env, { ok: false, error: "该隔离像素来源只允许提交经过校验的站点事件。" }, 403);
     }
-    const filtered = applyEventWritePolicy(request, payload);
-    if (filtered.events.length === 0) {
-      return json(request, env, {
-        ok: true,
+    try {
+      return await forwardUserEventPayload(request, env, payload);
+    } catch (error) {
+      console.error("signal_ingest_forward_failure", {
+        service: env.SERVICE_NAME,
+        siteKey: payload.siteKey,
+        source: payload.source,
+        eventNames: [...new Set(payload.events.map((event) => event.eventName))],
+        eventCount: payload.events.length,
+        rayId: request.headers.get("cf-ray") || "",
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return Response.json({
+        ok: false,
+        code: "forward_temporarily_unavailable",
+        error: "事件转发暂时不可用，请稍后重试。",
+        retryable: true,
         received: payload.events.length,
-        inserted: 0,
-        filtered: filtered.filtered,
-        filterReasons: filtered.reasons,
+        accepted: payload.events.length,
+      }, {
+        status: 503,
+        headers: { ...corsHeaders(request, env), "Retry-After": "60" },
       });
     }
-    const inserted = await saveEvents(env, payload.siteKey, payload.source, filtered.events);
-    return json(request, env, {
-      ok: true,
-      received: payload.events.length,
-      inserted,
-      filtered: filtered.filtered,
-      filterReasons: filtered.reasons,
-    });
   } catch (error) {
     return json(request, env, {
       ok: false,
@@ -108,10 +116,15 @@ export default {
       return json(request, env, {
         ok: true,
         service: env.SERVICE_NAME,
-        storage: "cloudflare-d1",
-        schemaVersion: "2026-09-15.write-policy-v1",
+        storage: "vercel-queue-proxy",
+        eventForwardUrl: env.EVENT_FORWARD_URL,
+        schemaVersion: "2026-09-18.vercel-queue-proxy-v1",
       });
     }
+    const snapshotResponse = await handleSnapshotRequest(request, env, url.pathname);
+    if (snapshotResponse) return snapshotResponse;
+    const analysisResultResponse = await handleAnalysisResultRequest(request, env, url.pathname);
+    if (analysisResultResponse) return analysisResultResponse;
     const analyticsResponse = await handleAnalyticsRequest(request, env, url.pathname);
     if (analyticsResponse) return analyticsResponse;
     if (request.method === "POST" && url.pathname === "/v1/events") return ingest(request, env);

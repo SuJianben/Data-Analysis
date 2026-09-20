@@ -1,17 +1,22 @@
-import { copyFileSync, existsSync, mkdirSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { copyFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 
 const DATA_DIRECTORY = path.join(process.cwd(), "data");
 const DEPLOY_SNAPSHOT_PATH = path.join(DATA_DIRECTORY, "analytics-deploy.db");
-const RUNTIME_DATA_DIRECTORY = path.join("/tmp", "tkf-signal");
+const RUNTIME_DATA_DIRECTORY = path.join("/tmp", "multi-site-analytics");
 
 function databasePath() {
+  if (process.env.ANALYTICS_DATABASE_PATH) return path.resolve(process.env.ANALYTICS_DATABASE_PATH);
   if (process.env.TKF_DATABASE_PATH) return path.resolve(process.env.TKF_DATABASE_PATH);
   if (!process.env.VERCEL) return path.join(DATA_DIRECTORY, "analytics.db");
 
   mkdirSync(RUNTIME_DATA_DIRECTORY, { recursive: true });
-  const runtimePath = path.join(RUNTIME_DATA_DIRECTORY, "analytics.db");
+  const snapshotVersion = existsSync(DEPLOY_SNAPSHOT_PATH)
+    ? createHash("sha256").update(readFileSync(DEPLOY_SNAPSHOT_PATH)).digest("hex").slice(0, 16)
+    : "empty";
+  const runtimePath = path.join(RUNTIME_DATA_DIRECTORY, `analytics-${snapshotVersion}.db`);
   if (!existsSync(runtimePath) && existsSync(DEPLOY_SNAPSHOT_PATH)) {
     copyFileSync(DEPLOY_SNAPSHOT_PATH, runtimePath);
   }
@@ -19,8 +24,22 @@ function databasePath() {
 }
 
 type GlobalWithDatabase = typeof globalThis & {
-  __tkfSignalDatabase?: Database.Database;
+  __multiSiteAnalyticsDatabase?: Database.Database;
 };
+
+function executeWithBusyRetry(database: Database.Database, sql: string) {
+  const retryDelay = new Int32Array(new SharedArrayBuffer(4));
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    try {
+      database.exec(sql);
+      return;
+    } catch (error) {
+      const isBusy = error instanceof Error && "code" in error && error.code === "SQLITE_BUSY";
+      if (!isBusy || attempt === 19) throw error;
+      Atomics.wait(retryDelay, 0, 0, 100);
+    }
+  }
+}
 
 function createDatabase() {
   const resolvedDatabasePath = databasePath();
@@ -29,7 +48,7 @@ function createDatabase() {
   database.pragma("busy_timeout = 5000");
   database.pragma("journal_mode = WAL");
   database.pragma("foreign_keys = ON");
-  database.exec(`
+  executeWithBusyRetry(database, `
     CREATE TABLE IF NOT EXISTS menu_click_metrics (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       source TEXT NOT NULL,
@@ -120,6 +139,11 @@ function createDatabase() {
       created_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      key TEXT PRIMARY KEY,
+      applied_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS user_events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       source TEXT NOT NULL,
@@ -159,22 +183,73 @@ function createDatabase() {
   for (const table of siteScopedTables) {
     const columns = database.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
     if (!columns.some((column) => column.name === "site_key")) {
-      database.exec(`ALTER TABLE ${table} ADD COLUMN site_key TEXT NOT NULL DEFAULT 'tkf'`);
+      executeWithBusyRetry(database, `ALTER TABLE ${table} ADD COLUMN site_key TEXT NOT NULL DEFAULT 'tkf'`);
     }
   }
-  database.exec(`
+  const userEventColumns = database.prepare("PRAGMA table_info(user_events)").all() as Array<{ name: string }>;
+  if (!userEventColumns.some((column) => column.name === "is_shadowed")) {
+    executeWithBusyRetry(database, "ALTER TABLE user_events ADD COLUMN is_shadowed INTEGER NOT NULL DEFAULT 0");
+  }
+  const shadowMigrationKey = "2026-09-18-shadow-legacy-duplicates-v1";
+  const shadowMigrationApplied = database.prepare("SELECT 1 FROM schema_migrations WHERE key = ?").get(shadowMigrationKey);
+  if (!shadowMigrationApplied) {
+    executeWithBusyRetry(database, `
+      DROP TABLE IF EXISTS temp.shadow_pixel_signatures;
+      CREATE TEMP TABLE shadow_pixel_signatures (signature TEXT PRIMARY KEY) WITHOUT ROWID;
+      INSERT OR IGNORE INTO shadow_pixel_signatures (signature)
+      SELECT pixel.site_key || CHAR(31) || pixel.event_name || CHAR(31) || pixel.page_path || CHAR(31)
+        || pixel.element_key || CHAR(31) || pixel.element_label || CHAR(31) || pixel.destination_path || CHAR(31)
+        || pixel.click_target || CHAR(31) || STRFTIME('%Y-%m-%dT%H:%M:%S', pixel.occurred_at)
+      FROM user_events AS pixel
+      WHERE pixel.source IN ('shopify_pixel', 'shopify_pixel:tkf', 'shopify_pixel:tms', 'shopify_pixel:fkk');
+
+      UPDATE user_events AS legacy
+      SET is_shadowed = 1
+      WHERE legacy.is_shadowed = 0
+        AND legacy.event_name IN ('page_view', 'global_click')
+        AND legacy.source IN ('shopify', 'shopify:tkf', 'shopify:tms', 'shopify:fkk')
+        AND legacy.site_key || CHAR(31) || legacy.event_name || CHAR(31) || legacy.page_path || CHAR(31)
+          || legacy.element_key || CHAR(31) || legacy.element_label || CHAR(31) || legacy.destination_path || CHAR(31)
+          || legacy.click_target || CHAR(31) || STRFTIME('%Y-%m-%dT%H:%M:%S', legacy.occurred_at) IN (
+            SELECT signature FROM shadow_pixel_signatures
+        );
+      DROP TABLE shadow_pixel_signatures;
+    `);
+    database.prepare("INSERT OR IGNORE INTO schema_migrations (key, applied_at) VALUES (?, ?)")
+      .run(shadowMigrationKey, new Date().toISOString());
+  }
+  executeWithBusyRetry(database, `
     CREATE INDEX IF NOT EXISTS idx_menu_metrics_site_date ON menu_click_metrics(site_key, event_date);
     CREATE INDEX IF NOT EXISTS idx_site_metrics_site_date ON site_metrics(site_key, event_date, event_name);
     CREATE INDEX IF NOT EXISTS idx_global_click_metrics_site_date ON global_click_metrics(site_key, event_date, page_path);
     CREATE INDEX IF NOT EXISTS idx_user_events_site_time ON user_events(site_key, occurred_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_user_events_visible_site_time ON user_events(site_key, is_shadowed, occurred_at DESC);
   `);
   return database;
 }
 
 const globalDatabase = globalThis as GlobalWithDatabase;
 
-export const db = globalDatabase.__tkfSignalDatabase ?? createDatabase();
+export let db = globalDatabase.__multiSiteAnalyticsDatabase ?? createDatabase();
+
+export function activateDatabasePath(databaseFilePath: string) {
+  const resolvedPath = path.resolve(databaseFilePath);
+  if (process.env.ANALYTICS_DATABASE_PATH === resolvedPath) return false;
+  process.env.ANALYTICS_DATABASE_PATH = resolvedPath;
+  const previous = db;
+  db = createDatabase();
+  globalDatabase.__multiSiteAnalyticsDatabase = db;
+  const cleanup = setTimeout(() => {
+    try {
+      if (previous.open) previous.close();
+    } catch (error) {
+      console.warn("analytics_previous_database_close_failed", error instanceof Error ? error.message : String(error));
+    }
+  }, 60_000);
+  cleanup.unref();
+  return true;
+}
 
 if (process.env.NODE_ENV !== "production") {
-  globalDatabase.__tkfSignalDatabase = db;
+  globalDatabase.__multiSiteAnalyticsDatabase = db;
 }

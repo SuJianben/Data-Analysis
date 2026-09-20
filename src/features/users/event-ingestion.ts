@@ -1,5 +1,6 @@
 import { appConfig } from "@/config/env";
 import { saveUserEvents } from "@/services/database/user-event-repository";
+import { queueUserEvents } from "@/services/queue/user-event-queue";
 import type { UserEventInput } from "@/types/analytics";
 import type { SiteKey } from "@/config/sites";
 
@@ -10,14 +11,25 @@ type ForwardResponse = {
 };
 
 export type UserEventIngestionResult = {
-  mode: "stored" | "forwarded";
+  mode: "stored" | "queued" | "forwarded";
   received: number;
   inserted: number;
+  messageId?: string | null;
 };
 
 export async function ingestUserEvents(source: string, events: UserEventInput[], siteKey: SiteKey = "tkf"): Promise<UserEventIngestionResult> {
-  if (!appConfig.userEventForwardUrl) {
+  const mode = appConfig.userEventStorageMode || (process.env.VERCEL ? (appConfig.userEventForwardUrl ? "forward" : "queue") : "local");
+  if (mode === "local") {
     return { mode: "stored", received: events.length, inserted: saveUserEvents(source, events, siteKey) };
+  }
+
+  if (mode === "queue") {
+    const queued = await queueUserEvents(siteKey, source, events);
+    return { mode: "queued", received: events.length, inserted: 0, messageId: queued.messageId };
+  }
+
+  if (mode !== "forward" || !appConfig.userEventForwardUrl) {
+    throw new Error("用户事件存储模式配置不正确。");
   }
 
   const endpoint = new URL(appConfig.userEventForwardUrl);

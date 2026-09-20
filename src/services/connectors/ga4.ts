@@ -74,6 +74,7 @@ export async function fetchGa4Data(input: Ga4SyncInput): Promise<{
   heatmapMetrics: HeatmapMetricInput[];
   globalClickMetrics: GlobalClickMetricInput[];
   warnings: string[];
+  availability: { menu: boolean; site: true; heatmap: boolean; globalClicks: boolean };
 }> {
   const accessToken = await resolveGa4AccessToken(input.accessToken);
   const propertyId = input.propertyId || appConfig.ga4PropertyId;
@@ -234,5 +235,17 @@ export async function fetchGa4Data(input: Ga4SyncInput): Promise<{
     };
   }).filter((row) => Boolean(row.elementKey));
 
-  return { menuMetrics, siteMetrics, heatmapMetrics, globalClickMetrics, warnings };
+  return {
+    menuMetrics,
+    siteMetrics,
+    heatmapMetrics,
+    globalClickMetrics,
+    warnings,
+    availability: {
+      menu: menuResult.status === "fulfilled",
+      site: true,
+      heatmap: heatmapReport !== null,
+      globalClicks: globalClickReport !== null,
+    },
+  };
 }

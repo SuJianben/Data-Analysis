@@ -1,6 +1,7 @@
 import type { UserEventPayload } from "./types";
 
 const SHA256_HEX = /^[a-f0-9]{64}$/i;
+const PURCHASE_FASTPATH_VERSION = "2026-09-18.purchase-fastpath-v2";
 const LEGACY_PURCHASE_EVENT_ID = /^shopify_purchase_[a-zA-Z0-9._:-]+$/;
 const SHOPIFY_EVENT_ID = /^shopify_(page_view|global_click|add_to_cart|begin_checkout|purchase)_[a-zA-Z0-9._:-]+$/;
 const SHOPIFY_VISITOR_ID = /^shopify_(client|event)_[a-zA-Z0-9._:-]+$/;
@@ -22,6 +23,15 @@ function isFiniteNumberInRange(value: unknown, minimum: number, maximum: number)
   return typeof value === "number" && Number.isFinite(value) && value >= minimum && value <= maximum;
 }
 
+function hasPurchaseEvidence(metadata: Record<string, unknown>) {
+  const hasLegacyHash = typeof metadata.orderIdHash === "string" && SHA256_HEX.test(metadata.orderIdHash);
+  const hasFastPathEvidence = metadata.deliveryVersion === PURCHASE_FASTPATH_VERSION
+    && metadata.idempotencySource === "shopify_event_id"
+    && Array.isArray(metadata.items)
+    && metadata.items.length > 0;
+  return hasLegacyHash || hasFastPathEvidence;
+}
+
 function hasValidPurchaseShape(event: UserEventPayload["events"][number], now: number) {
   const occurredAt = Date.parse(event.occurredAt);
   const metadata = event.metadata || {};
@@ -33,8 +43,7 @@ function hasValidPurchaseShape(event: UserEventPayload["events"][number], now: n
     Number.isFinite(occurredAt) &&
     occurredAt >= now - MAX_EVENT_AGE_MS &&
     occurredAt <= now + MAX_FUTURE_SKEW_MS &&
-    typeof metadata.orderIdHash === "string" &&
-    SHA256_HEX.test(metadata.orderIdHash) &&
+    hasPurchaseEvidence(metadata) &&
     typeof metadata.currency === "string" &&
     CURRENCY.test(metadata.currency) &&
     isFiniteNumberInRange(metadata.value, 0, 1_000_000_000) &&

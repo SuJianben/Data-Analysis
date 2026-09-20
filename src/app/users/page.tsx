@@ -5,6 +5,7 @@ import { loadUserDeviceBreakdown, loadUserSummaries, loadUserTrend } from "@/ser
 import { resolveDateRange, type DateRangeParams } from "@/features/date-range/date-range";
 import { resolveSite, siteRangeQuery } from "@/features/site-selection/site-selection";
 import { sites } from "@/config/sites";
+import { DataSourceNotice } from "@/components/data-source/data-source-notice";
 
 export default async function UsersPage({ searchParams }: { searchParams: Promise<DateRangeParams> }) {
   const params = await searchParams;
@@ -13,19 +14,34 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
   const selectedSite = sites[site];
   const query = { ...range, site };
   const rangeQuery = siteRangeQuery(site, range);
-  const [rows, trend, devices] = await Promise.all([loadUserSummaries(500, query), loadUserTrend(query), loadUserDeviceBreakdown(query)]);
+  let rows;
+  let trend;
+  let devices;
+  try {
+    [rows, trend, devices] = await Promise.all([loadUserSummaries(500, query), loadUserTrend(query), loadUserDeviceBreakdown(query)]);
+  } catch (error) {
+    console.warn("[用户行为] 数据读取失败，已显示降级状态", error);
+    return (
+      <div className="page page-enter">
+        <header className="page-heading compact-heading">
+          <div><span className="section-number">04 / USERS · {selectedSite.shortLabel}</span><h1>用户行为</h1><p>查看 {selectedSite.label} 独立 Signal 埋点采集的访客轨迹；这里不使用 GA4 汇总或商城订单补数。</p></div>
+        </header>
+        <DataSourceNotice />
+      </div>
+    );
+  }
   const totalEvents = trend.reduce((sum, point) => sum + Number(point.events || 0), 0);
   const totalPurchases = trend.reduce((sum, point) => sum + Number(point.purchases || 0), 0);
   return (
     <div className="page page-enter">
       <header className="page-heading compact-heading">
-        <div><span className="section-number">04 / USERS · {selectedSite.shortLabel}</span><h1>用户行为</h1><p>分别查看 {selectedSite.label} 匿名访客与已识别客户的页面、按钮和商品互动。</p></div>
+        <div><span className="section-number">04 / USERS · {selectedSite.shortLabel}</span><h1>用户行为</h1><p>查看 {selectedSite.label} 独立 Signal 埋点采集的访客轨迹；这里不使用 GA4 汇总或商城订单补数。</p></div>
       </header>
       <PageTrendDashboard
         title="用户活动趋势"
         description="按所选时间范围查看用户事件、活跃访客与购买事件。"
         dateRange={range}
-        metrics={[{ label: "期间事件", value: totalEvents, note: "用户行为总量" }, { label: "识别用户", value: rows.length, note: "当前范围用户列表" }, { label: "购买事件", value: totalPurchases, note: "purchase 事件" }]}
+        metrics={[{ label: "期间事件", value: totalEvents, note: "Signal 独立采集" }, { label: "识别用户", value: rows.length, note: "Signal 用户轨迹" }, { label: "购买事件", value: totalPurchases, note: "Signal purchase；健康页对照 GA4" }]}
         data={trend.map(({ date, events, visitors, purchases }) => ({ date, values: { events: Number(events), visitors: Number(visitors), purchases: Number(purchases) } }))}
         primaryTitle="用户事件趋势"
         primarySeries={[{ key: "events", label: "用户事件", color: "#315efb" }, { key: "visitors", label: "活跃用户", color: "#7184c7" }]}

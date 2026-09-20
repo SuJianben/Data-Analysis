@@ -2,14 +2,21 @@ node_modules/
 .next/
 .env
 .env.local
+.env.vercel.local
+.env.vercel.production.local
 data/*.db
 data/*.db-shm
 data/*.db-wal
 secrets/*.json
 npm-debug.log*
 logs/local-sync-server.*.log
+logs/local-server.*.log
+logs/local-sync-*.log
 *.zip
 .deploy-staging/
 tsconfig.tsbuildinfo
+.playwright-cli/
+output/
+logs/automation-ga4-server.*.log
 
 .vercel

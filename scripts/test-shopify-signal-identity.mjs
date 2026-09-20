@@ -152,8 +152,17 @@ async function runPixelTest(pixel) {
   assert.equal(addToCart.eventId.includes('dedupe'), false, `${pixel.site} 加购不应被窗口去重。`);
   assert.equal(beginCheckout.eventId.includes('dedupe'), false, `${pixel.site} 开始结账不应被窗口去重。`);
   assert.equal(purchase.eventId.includes('dedupe'), false, `${pixel.site} 购买不应被窗口去重。`);
-  assert.match(purchase.customerIdHash, /^[a-f0-9]{64}$/);
-  assert.match(purchase.metadata.orderIdHash, /^[a-f0-9]{64}$/);
+  assert.equal(purchase.customerIdHash, undefined, `${pixel.site} 购买首包不应等待客户哈希。`);
+  assert.equal(purchase.metadata.orderIdHash, undefined, `${pixel.site} 购买首包不应等待订单哈希。`);
+  assert.equal(purchase.metadata.deliveryVersion, '2026-09-18.purchase-fastpath-v2');
+  assert.equal(purchase.metadata.idempotencySource, 'shopify_event_id');
+  assert.equal(purchase.metadata.items.length, 1, `${pixel.site} 购买事件缺少商品证据。`);
+  assert.equal(purchase.metadata.items[0].itemId, 'SKU-77');
+  assert.equal(purchase.metadata.items[0].itemName, 'Example shirt');
+  assert.equal(purchase.metadata.items[0].itemVariant, 'M');
+  assert.equal(purchase.metadata.items[0].quantity, 1);
+  assert.equal(purchase.metadata.itemsTruncated, false);
+  assert.ok(JSON.stringify(purchase.metadata).length < 8_000, `${pixel.site} 购买证据超过 Worker metadata 限制。`);
   const serialized = JSON.stringify(requests.map((request) => request.payload));
   assert.equal(serialized.includes('customer-identity-test'), false, `${pixel.site} 载荷泄露原始客户 ID。`);
   assert.equal(serialized.includes('order-identity-test'), false, `${pixel.site} 载荷泄露原始订单 ID。`);
@@ -161,4 +170,4 @@ async function runPixelTest(pixel) {
 
 for (const pixel of pixels) await runPixelTest(pixel);
 
-console.log('Shopify 三站身份与减压策略验证通过：clientId 统一，低价值事件窗口去重，转化事件完整保留。');
+console.log('Shopify 三站身份与减压策略验证通过：clientId 统一，低价值事件窗口去重，购买首包不等待哈希。');

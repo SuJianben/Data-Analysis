@@ -2,7 +2,9 @@ import type { SiteKey } from "./sites";
 
 export interface Env {
   DB: D1Database;
+  SNAPSHOT_KV: KVNamespace;
   ALLOWED_ORIGINS: string;
+  EVENT_FORWARD_URL: string;
   SERVICE_NAME: string;
   READ_API_KEY: string;
   SERVER_INGEST_KEY: string;

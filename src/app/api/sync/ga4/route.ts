@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { fetchGa4Data } from "@/services/connectors/ga4";
 import { siteKeys } from "@/config/sites";
-import { finishSync, saveGlobalClickMetrics, saveHeatmapMetrics, saveMenuMetrics, saveSiteMetrics, saveSnapshot, startSync } from "@/services/database/repositories";
+import { finishSync, startSync } from "@/services/database/repositories";
+import { replaceGa4Snapshot } from "@/services/database/ga4-snapshot-repository";
 
 export const runtime = "nodejs";
 
@@ -21,18 +22,13 @@ export async function POST(request: Request) {
     const source = `ga4:${input.siteKey}`;
     syncId = startSync(source, input.siteKey);
     const result = await fetchGa4Data(input);
-    saveMenuMetrics(source, result.menuMetrics, input.siteKey);
-    saveSiteMetrics(source, result.siteMetrics, input.siteKey);
-    saveHeatmapMetrics(source, result.heatmapMetrics, input.siteKey);
-    saveGlobalClickMetrics(source, result.globalClickMetrics, input.siteKey);
-    saveSnapshot(
-      { siteKey: input.siteKey, source, counts: { menus: result.menuMetrics.length, metrics: result.siteMetrics.length, heatmap: result.heatmapMetrics.length, globalClicks: result.globalClickMetrics.length }, warnings: result.warnings },
-      input.startDate,
-      input.endDate,
+    const rowCount = replaceGa4Snapshot({
+      siteKey: input.siteKey,
       source,
-      input.siteKey,
-    );
-    const rowCount = result.menuMetrics.length + result.siteMetrics.length + result.heatmapMetrics.length + result.globalClickMetrics.length;
+      startDate: input.startDate,
+      endDate: input.endDate,
+      dataset: result,
+    });
     const message = result.warnings.length
       ? `GA4 已同步，热力数据待配置：${result.warnings.join("；")}`
       : (rowCount ? "GA4 数据同步完成" : "GA4 请求成功，但该日期范围暂无标准报表数据");

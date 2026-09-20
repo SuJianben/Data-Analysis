@@ -25,9 +25,11 @@ async function waitFor(check, message) {
   throw new Error(message);
 }
 
-function createHarness(initialCustomerId = null) {
+function createHarness(initialCustomerId = null, options = {}) {
   const subscriptions = new Map();
   const requests = [];
+  const dataLayer = [];
+  const responses = [...(options.responses || [])];
   const context = {
     analytics: { subscribe: (name, callback) => subscriptions.set(name, callback) },
     init: { data: { customer: initialCustomerId ? { id: initialCustomerId } : null } },
@@ -37,7 +39,12 @@ function createHarness(initialCustomerId = null) {
     },
     fetch: async (url, options) => {
       requests.push({ url, options, payload: JSON.parse(options.body) });
-      return { ok: true };
+      const status = responses.length ? responses.shift() : 200;
+      return {
+        ok: status >= 200 && status < 300,
+        status,
+        json: async () => ({ code: status === 503 ? 'storage_temporarily_unavailable' : 'test_error' }),
+      };
     },
     crypto: webcrypto,
     TextEncoder,
@@ -50,12 +57,13 @@ function createHarness(initialCustomerId = null) {
     Promise,
     Set,
     console,
-    setTimeout,
+    setTimeout: options.immediateTimers ? (callback) => setTimeout(callback, 0) : setTimeout,
   };
   context.window = context;
+  context.dataLayer = dataLayer;
   vm.createContext(context);
   vm.runInContext(pixelSource, context, { filename: 'fkk-ga4-customer-pixel.js' });
-  return { subscriptions, requests };
+  return { subscriptions, requests, dataLayer };
 }
 
 const clientId = 'client-journey-12345';
@@ -104,8 +112,10 @@ assert.equal(new Set(signalEvents.map((event) => event.visitorId)).size, 1, '同
 assert.ok(signalEvents.every((event) => event.visitorId === `shopify_client_${clientId}`));
 assert.ok(signalEvents.every((event) => event.metadata.identitySource === 'shopify_client_id'));
 const purchaseEvent = signalEvents.find((event) => event.eventName === 'purchase');
-assert.match(purchaseEvent.customerIdHash, /^[a-f0-9]{64}$/);
-assert.match(purchaseEvent.metadata.orderIdHash, /^[a-f0-9]{64}$/);
+assert.equal(purchaseEvent.customerIdHash, undefined);
+assert.equal(purchaseEvent.metadata.orderIdHash, undefined);
+assert.equal(purchaseEvent.metadata.deliveryVersion, '2026-09-18.purchase-fastpath-v2');
+assert.equal(purchaseEvent.metadata.idempotencySource, 'shopify_event_id');
 assert.equal(purchaseEvent.metadata.itemCount, 2);
 const serializedRequests = JSON.stringify(harness.requests.map((request) => request.payload));
 assert.equal(serializedRequests.includes('customer-42'), false, 'Signal 载荷泄露了原始客户 ID。');
@@ -120,6 +130,40 @@ await waitFor(() => fallbackHarness.requests.length === 1, 'clientId 缺失时�
 const fallbackEvent = fallbackHarness.requests[0].payload.event;
 assert.equal(fallbackEvent.visitorId, 'shopify_event_fallback-event-1');
 assert.equal(fallbackEvent.metadata.identitySource, 'shopify_event_fallback');
+
+const retryHarness = createHarness(null, { responses: [503, 503, 200], immediateTimers: true });
+retryHarness.subscriptions.get('checkout_completed')({
+  id: 'purchase-retry-1', clientId, timestamp: '2026-09-15T03:00:00.000Z',
+  context: eventContext('/checkouts/retry/thank-you'),
+  data: { checkout: {
+    currencyCode: 'GBP', totalPrice: { amount: 50 }, totalTax: { amount: 0 }, shippingLine: { price: { amount: 0 } },
+    discountApplications: [], order: { id: 'order-retry-1', customer: { id: 'customer-retry-1' } },
+    lineItems: [{ quantity: 1, title: 'Retry shirt', variant: { id: 'variant-retry', sku: 'FKK-RETRY', title: 'L', price: { amount: 50 } } }],
+  } },
+});
+await waitFor(() => retryHarness.requests.length === 3, '购买事件遇到 503 后没有按计划重试。');
+assert.equal(new Set(retryHarness.requests.map((request) => request.payload.event.eventId)).size, 1, '购买重试必须复用同一事件号。');
+assert.equal(
+  retryHarness.dataLayer.some((entry) => entry[0] === 'event' && entry[1] === 'signal_delivery_error'),
+  false,
+  '重试成功后不应上报 Signal 投递失败。',
+);
+
+const failedHarness = createHarness(null, { responses: [503, 503, 503, 503], immediateTimers: true });
+failedHarness.subscriptions.get('checkout_completed')({
+  id: 'purchase-failed-1', clientId, timestamp: '2026-09-15T03:05:00.000Z',
+  context: eventContext('/checkouts/failed/thank-you'),
+  data: { checkout: {
+    currencyCode: 'GBP', totalPrice: { amount: 60 }, totalTax: { amount: 0 }, shippingLine: { price: { amount: 0 } },
+    discountApplications: [], order: { id: 'order-failed-1', customer: { id: 'customer-failed-1' } },
+    lineItems: [{ quantity: 1, title: 'Failed shirt', variant: { id: 'variant-failed', sku: 'FKK-FAILED', title: 'XL', price: { amount: 60 } } }],
+  } },
+});
+await waitFor(
+  () => failedHarness.dataLayer.some((entry) => entry[0] === 'event' && entry[1] === 'signal_delivery_error'),
+  '购买事件最终失败后没有向 GA4 写入独立诊断事件。',
+);
+assert.equal(failedHarness.requests.length, 4);
 
 const clickHandlers = new Map();
 const publishedEvents = [];
@@ -156,4 +200,4 @@ assert.deepEqual(publishedEvents.map((event) => event.name), ['fkk:global_click'
 assert.equal(publishedEvents[0].data.element_key, 'ProductSubmitButton');
 assert.equal(publishedEvents[0].data.page_path, '/products/example-shirt');
 
-console.log('FKK Shopify Signal 完整链路模拟通过：主题事件已发布，5 类事件共用 clientId，哈希与兜底标记正确。');
+console.log('FKK Shopify Signal 完整链路模拟通过：主题事件已发布，5 类事件共用 clientId，购买使用立即发送版本。');

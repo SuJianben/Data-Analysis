@@ -1,6 +1,7 @@
 import type { UserEventPayload } from "./types";
 
 const SHA256_HEX = /^[a-f0-9]{64}$/i;
+const PURCHASE_FASTPATH_VERSION = "2026-09-18.purchase-fastpath-v2";
 const SHOPLINE_EVENT_ID = /^shopline_(page_view|global_click|add_to_cart|begin_checkout|purchase)_[a-zA-Z0-9._:-]+$/;
 const SHOPLINE_VISITOR_ID = /^visitor_shopline_[a-zA-Z0-9._:-]+$/;
 const CURRENCY = /^[A-Z]{3}$/;
@@ -43,6 +44,15 @@ function hasValidCommerceMetadata(event: UserEventPayload["events"][number]) {
   );
 }
 
+function hasPurchaseEvidence(metadata: Record<string, unknown>) {
+  const hasLegacyHash = typeof metadata.orderIdHash === "string" && SHA256_HEX.test(metadata.orderIdHash);
+  const hasFastPathEvidence = metadata.deliveryVersion === PURCHASE_FASTPATH_VERSION
+    && metadata.idempotencySource === "shopline_event_id"
+    && Array.isArray(metadata.items)
+    && metadata.items.length > 0;
+  return hasLegacyHash || hasFastPathEvidence;
+}
+
 function isShoplineEvent(event: UserEventPayload["events"][number], now: number) {
   if (!isRecentShoplineEvent(event, now)) return false;
   if (event.eventName === "page_view") return Boolean(event.pagePath);
@@ -58,8 +68,7 @@ function isShoplineEvent(event: UserEventPayload["events"][number], now: number)
     event.eventName === "purchase" &&
     event.pageSection === "checkout" &&
     event.clickTarget === "checkout_completed" &&
-    typeof metadata.orderIdHash === "string" &&
-    SHA256_HEX.test(metadata.orderIdHash) &&
+    hasPurchaseEvidence(metadata) &&
     hasValidCommerceMetadata(event)
   );
 }
@@ -67,7 +76,8 @@ function isShoplineEvent(event: UserEventPayload["events"][number], now: number)
 /**
  * SHOPLINE customer pixels run in an opaque-origin sandbox. Only BLK's tightly
  * validated standard/custom events can use that channel. Purchases additionally
- * require a hashed order ID and are deduplicated by event ID in D1.
+ * require either the legacy hashed order ID or the fast-path product evidence.
+ * Both versions are deduplicated by the platform event ID.
  */
 export function isOpaqueShoplineEventRequest(
   request: Request,

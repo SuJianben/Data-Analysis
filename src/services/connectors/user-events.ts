@@ -1,12 +1,13 @@
 import "server-only";
 
-import { appConfig } from "@/config/env";
 import { cloudflareRead } from "@/services/connectors/cloudflare-request";
+import { readWithLocalFallback } from "@/services/connectors/data-source-fallback";
 import {
   getUserEvents as getLocalUserEvents,
   getUserSummaries as getLocalUserSummaries,
   getUserTrend as getLocalUserTrend,
   getUserDeviceBreakdown as getLocalUserDeviceBreakdown,
+  hasLocalUserEvents,
 } from "@/services/database/user-event-repository";
 import type { DateRangeOptions, DeviceStatPoint, UserEventRow, UserSummaryRow, UserTrendPoint } from "@/types/analytics";
 
@@ -23,34 +24,61 @@ function rangeQuery(options: DateRangeOptions) {
   return query;
 }
 
+function requireLocalUserEvents<T>(read: () => T) {
+  if (!hasLocalUserEvents()) {
+    throw new Error("云端用户行为暂时不可用，本地尚无可用的用户行为快照。");
+  }
+  return read();
+}
+
 export async function loadUserSummaries(limit = 200, options: DateRangeOptions = {}): Promise<UserSummaryRow[]> {
-  if (!appConfig.userEventApiUrl) return getLocalUserSummaries(limit, options);
-  const query = rangeQuery(options);
-  query.set("limit", String(limit));
-  const payload = await cloudflareRead<UserSummaryResponse>(`/users?${query.toString()}`, { errorLabel: "用户摘要读取" });
-  return payload.rows || [];
+  return readWithLocalFallback({
+    label: "用户摘要",
+    local: () => requireLocalUserEvents(() => getLocalUserSummaries(limit, options)),
+    cloudflare: async () => {
+      const query = rangeQuery(options);
+      query.set("limit", String(limit));
+      const payload = await cloudflareRead<UserSummaryResponse>(`/users?${query.toString()}`, { errorLabel: "用户摘要读取" });
+      return payload.rows || [];
+    },
+  });
 }
 
 export async function loadUserEvents(identityKey: string, limit = 500, options: DateRangeOptions = {}): Promise<UserEventRow[]> {
-  if (!appConfig.userEventApiUrl) return getLocalUserEvents(identityKey, limit, options);
-  const query = rangeQuery(options);
-  const suffix = query.size ? `?${query.toString()}` : "";
-  const payload = await cloudflareRead<UserDetailResponse>(`/users/${encodeURIComponent(identityKey)}${suffix}`, { errorLabel: "用户行为读取" });
-  return (payload.events || []).slice(0, limit);
+  return readWithLocalFallback({
+    label: "用户行为",
+    local: () => requireLocalUserEvents(() => getLocalUserEvents(identityKey, limit, options)),
+    cloudflare: async () => {
+      const query = rangeQuery(options);
+      const suffix = query.size ? `?${query.toString()}` : "";
+      const payload = await cloudflareRead<UserDetailResponse>(`/users/${encodeURIComponent(identityKey)}${suffix}`, { errorLabel: "用户行为读取" });
+      return (payload.events || []).slice(0, limit);
+    },
+  });
 }
 
 export async function loadUserTrend(options: DateRangeOptions = {}): Promise<UserTrendPoint[]> {
-  if (!appConfig.userEventApiUrl) return getLocalUserTrend(options);
-  const query = rangeQuery(options);
-  const suffix = query.size ? `?${query.toString()}` : "";
-  const payload = await cloudflareRead<UserTrendResponse>(`/users/trend${suffix}`, { errorLabel: "用户趋势读取" });
-  return payload.trend || [];
+  return readWithLocalFallback({
+    label: "用户趋势",
+    local: () => requireLocalUserEvents(() => getLocalUserTrend(options)),
+    cloudflare: async () => {
+      const query = rangeQuery(options);
+      const suffix = query.size ? `?${query.toString()}` : "";
+      const payload = await cloudflareRead<UserTrendResponse>(`/users/trend${suffix}`, { errorLabel: "用户趋势读取" });
+      return payload.trend || [];
+    },
+  });
 }
 
 export async function loadUserDeviceBreakdown(options: DateRangeOptions = {}): Promise<DeviceStatPoint[]> {
-  if (!appConfig.userEventApiUrl) return getLocalUserDeviceBreakdown(options);
-  const query = rangeQuery(options);
-  const suffix = query.size ? `?${query.toString()}` : "";
-  const payload = await cloudflareRead<UserDeviceResponse>(`/users/device-breakdown${suffix}`, { errorLabel: "用户设备读取" });
-  return payload.devices || [];
+  return readWithLocalFallback({
+    label: "用户设备分布",
+    local: () => requireLocalUserEvents(() => getLocalUserDeviceBreakdown(options)),
+    cloudflare: async () => {
+      const query = rangeQuery(options);
+      const suffix = query.size ? `?${query.toString()}` : "";
+      const payload = await cloudflareRead<UserDeviceResponse>(`/users/device-breakdown${suffix}`, { errorLabel: "用户设备读取" });
+      return payload.devices || [];
+    },
+  });
 }

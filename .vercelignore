@@ -1,0 +1,9 @@
+output/
+.playwright-cli/
+data/analytics.db
+data/analytics.db-shm
+data/analytics.db-wal
+data/analytics-deploy.db-shm
+data/analytics-deploy.db-wal
+logs/local-sync-server.*.log
+logs/automation-ga4-server.*.log

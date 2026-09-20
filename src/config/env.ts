@@ -1,4 +1,5 @@
 export const appConfig = {
+  analyticsReadMode: process.env.ANALYTICS_READ_MODE || "",
   ga4PropertyId: process.env.GA4_PROPERTY_ID || "546810508",
   ga4AccessToken: process.env.GA4_ACCESS_TOKEN || "",
   googleOAuthClientId: process.env.GOOGLE_OAUTH_CLIENT_ID || "",
@@ -9,6 +10,9 @@ export const appConfig = {
   userEventIngestKey: process.env.USER_EVENT_INGEST_KEY || "",
   userEventForwardUrl: process.env.USER_EVENT_FORWARD_URL || "",
   userEventForwardKey: process.env.USER_EVENT_FORWARD_KEY || "",
+  userEventStorageMode: process.env.USER_EVENT_STORAGE_MODE || "",
+  userEventQueueTopic: process.env.USER_EVENT_QUEUE_TOPIC || "signal-user-events-v1",
+  userEventQueueRegion: process.env.USER_EVENT_QUEUE_REGION || "fra1",
   userEventAllowedOrigins: (process.env.USER_EVENT_ALLOWED_ORIGINS || "")
     .split(",")
     .map((value) => value.trim())

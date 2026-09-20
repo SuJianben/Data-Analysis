@@ -8,7 +8,7 @@
   window.__blkSignalPublisherLoaderV1 = true;
 
   var script = document.createElement("script");
-  script.src = "https://tkf-signal.vercel.app/integrations/shopline/blk-signal-publisher.js";
+  script.src = "https://multi-site-analytics.vercel.app/integrations/shopline/blk-signal-publisher.js";
   script.async = true;
   script.setAttribute("data-blk-signal-publisher", "v1");
   document.head.appendChild(script);

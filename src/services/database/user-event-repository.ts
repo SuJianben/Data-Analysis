@@ -5,13 +5,16 @@ import type { SiteKey } from "@/config/sites";
 const isoNow = () => new Date().toISOString();
 
 const RESOLVED_USER_EVENTS_CTE = `
-  WITH visitor_accounts AS (
+  WITH canonical_user_events AS (
+    SELECT * FROM user_events WHERE is_shadowed = 0
+  ),
+  visitor_accounts AS (
     SELECT
       site_key,
       visitor_id,
       COUNT(DISTINCT CASE WHEN customer_id_hash <> '' THEN customer_id_hash END) AS account_count,
       MAX(NULLIF(customer_id_hash, '')) AS account_hash
-    FROM user_events
+    FROM canonical_user_events
     GROUP BY site_key, visitor_id
   ),
   resolved_user_events AS (
@@ -31,7 +34,7 @@ const RESOLVED_USER_EVENTS_CTE = `
         WHEN visitor_accounts.account_count = 1 THEN visitor_accounts.account_hash
         ELSE user_events.visitor_id
       END AS identity_id
-    FROM user_events
+    FROM canonical_user_events AS user_events
     JOIN visitor_accounts ON visitor_accounts.site_key = user_events.site_key AND visitor_accounts.visitor_id = user_events.visitor_id
   )
 `;
@@ -47,6 +50,37 @@ function eventDateFilter(options: DateRangeOptions, extra: string[] = [], extraV
     values.push(`${end.toISOString().slice(0, 10)}T00:00:00.000Z`);
   }
   return { clause: conditions.length ? `WHERE ${conditions.join(" AND ")}` : "", values };
+}
+
+function shadowLegacyDuplicates(siteKey: SiteKey, rows: UserEventInput[]) {
+  const lowValueTimes = rows
+    .filter((row) => row.eventName === "page_view" || row.eventName === "global_click")
+    .map((row) => Date.parse(row.occurredAt))
+    .filter(Number.isFinite);
+  if (!lowValueTimes.length) return;
+  const start = new Date(Math.min(...lowValueTimes) - 1_000).toISOString();
+  const end = new Date(Math.max(...lowValueTimes) + 1_000).toISOString();
+  db.prepare(`
+    UPDATE user_events AS legacy
+    SET is_shadowed = 1
+    WHERE legacy.site_key = ?
+      AND legacy.occurred_at BETWEEN ? AND ?
+      AND legacy.event_name IN ('page_view', 'global_click')
+      AND legacy.source IN ('shopify', 'shopify:tkf', 'shopify:tms', 'shopify:fkk')
+      AND EXISTS (
+        SELECT 1
+        FROM user_events AS pixel
+        WHERE pixel.site_key = legacy.site_key
+          AND pixel.source IN ('shopify_pixel', 'shopify_pixel:tkf', 'shopify_pixel:tms', 'shopify_pixel:fkk')
+          AND pixel.event_name = legacy.event_name
+          AND pixel.page_path = legacy.page_path
+          AND pixel.element_key = legacy.element_key
+          AND pixel.element_label = legacy.element_label
+          AND pixel.destination_path = legacy.destination_path
+          AND pixel.click_target = legacy.click_target
+          AND STRFTIME('%Y-%m-%dT%H:%M:%S', pixel.occurred_at) = STRFTIME('%Y-%m-%dT%H:%M:%S', legacy.occurred_at)
+      )
+  `).run(siteKey, start, end);
 }
 
 export function saveUserEvents(source: string, rows: UserEventInput[], siteKey: SiteKey = "tkf") {
@@ -85,7 +119,12 @@ export function saveUserEvents(source: string, rows: UserEventInput[], siteKey: 
     }
   });
   insertRows(rows);
+  shadowLegacyDuplicates(siteKey, rows);
   return inserted;
+}
+
+export function hasLocalUserEvents() {
+  return (db.prepare("SELECT EXISTS(SELECT 1 FROM user_events LIMIT 1) AS value").get() as { value: number }).value === 1;
 }
 
 export function getUserSummaries(limit = 200, options: DateRangeOptions = {}): UserSummaryRow[] {

@@ -32,7 +32,17 @@ const normalRequest = new Request('https://blk-signal-user-events.trustmereview.
   method: 'POST',
   headers: { 'user-agent': 'Mozilla/5.0 Chrome/140 Safari/537.36' },
 });
-assert.equal(applyEventWritePolicy(normalRequest, workerPayload('/products/example-shirt')).events.length, 1);
+const firstNormalized = applyEventWritePolicy(normalRequest, workerPayload('/products/example-shirt'));
+const duplicatePayload = workerPayload('/products/example-shirt');
+duplicatePayload.events[0].eventId = 'shopline_page_view_event-87654321';
+const secondNormalized = applyEventWritePolicy(normalRequest, duplicatePayload);
+assert.equal(firstNormalized.events.length, 1);
+assert.equal(firstNormalized.optimized, 1);
+assert.equal(
+  firstNormalized.events[0].eventId,
+  secondNormalized.events[0].eventId,
+  'Worker 应在服务端把同一时间窗口的旧版页面事件归一为同一事件号。',
+);
 assert.deepEqual(
   applyEventWritePolicy(normalRequest, workerPayload('/collections/ronaldo/blk-combo--team~France')).reasons,
   { generated_collection_filter: 1 },
@@ -73,7 +83,10 @@ const shopifyPurchasePayload = {
   ...shopifyFallbackPayload,
   events: [{ ...shopifyFallbackPayload.events[0], eventName: 'purchase' }],
 };
-assert.equal(applyEventWritePolicy(botRequest, shopifyPurchasePayload).events.length, 1, '高价值购买事件始终保留。');
+const preservedPurchase = applyEventWritePolicy(botRequest, shopifyPurchasePayload);
+assert.equal(preservedPurchase.events.length, 1, '高价值购买事件始终保留。');
+assert.equal(preservedPurchase.optimized, 0, '购买事件不能被窗口去重改写。');
+assert.equal(preservedPurchase.events[0].eventId, shopifyPurchasePayload.events[0].eventId);
 
 function createPixelHarness() {
   const subscriptions = new Map();

@@ -17,7 +17,7 @@
 
 - 页面浏览、点击、加购、开始结账和购买统一使用 Shopify `clientId`。
 - 点击事件由主题通过 Shopify Analytics 发布，再由 Customer Pixel 同时发往 GA4 和 FKK Signal。
-- 客户与订单只上报 SHA-256 哈希，不发送原始编号。
+- 购买首包使用 Shopify 事件号和精简商品证据立即发送，不等待订单或客户哈希，也不发送原始编号。
 - `clientId` 异常缺失时明确标记兜底身份，供数据健康页面报警。
 
 ## 二、必须核对的信息
@@ -26,7 +26,7 @@
 - 正式域名：`footballkituk.com`。
 - GA4 媒体资源 ID：`553763610`。
 - GA4 衡量 ID：`G-51EXGWMTDP`。
-- FKK Worker：`https://fkk-signal-user-events.trustmereview.workers.dev/v1/events`。
+- FKK 用户行为接收地址：`https://multi-site-analytics.vercel.app/api/events`。
 - Pixel 名称：`FKK GA4`。
 
 如果后台 URL 不包含 `/store/fbed87-94/`，立即停止。
@@ -55,7 +55,8 @@
 在编辑器中搜索并确认：
 
 - 只有 `G-51EXGWMTDP`，没有其他 `G-` 衡量 ID。
-- Worker 地址以 `fkk-signal-user-events` 开头。
+- 接收地址是 `https://multi-site-analytics.vercel.app/api/events`。
+- 存在 `2026-09-18.purchase-fastpath-v2` 和 `signal_purchase_attempt`。
 - 载荷是 `siteKey: 'fkk'` 和 `source: 'shopify_pixel:fkk'`。
 - 存在 `page_viewed`、`product_added_to_cart`、`checkout_started`、`checkout_completed`、`all_custom_events` 五个订阅。
 - 存在 `event.clientId`、`shopify_client_` 和 `identitySource`。

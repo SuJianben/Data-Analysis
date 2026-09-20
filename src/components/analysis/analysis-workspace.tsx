@@ -19,9 +19,16 @@ function displayText(value: unknown): string {
   return "—";
 }
 
-export function AnalysisWorkspace({ initialResult, dateRange, site }: { initialResult: AnalysisResult | null; dateRange: DateRange; site: SiteKey }) {
+const DEFAULT_QUESTION = "分析菜单表现，并指出最值得优先验证的三个问题。";
+
+export function AnalysisWorkspace({ initialResult, initialQuestion, dateRange, site }: {
+  initialResult: AnalysisResult | null;
+  initialQuestion?: string;
+  dateRange: DateRange;
+  site: SiteKey;
+}) {
   const [result, setResult] = useState(initialResult);
-  const [question, setQuestion] = useState("分析菜单表现，并指出最值得优先验证的三个问题。");
+  const [question, setQuestion] = useState(initialQuestion || DEFAULT_QUESTION);
   const [loading, setLoading] = useState(false);
   const [revealing, setRevealing] = useState(false);
   const [thinkingText, setThinkingText] = useState("");

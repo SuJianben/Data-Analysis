@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { analyzeWithConfiguredProvider } from "@/services/connectors/ai";
 import { loadAnalysisDataset } from "@/services/connectors/analytics";
-import { saveAnalysis } from "@/services/database/repositories";
+import { savePersistedAnalysis } from "@/services/analysis/analysis-result-store";
 import { resolveDateRange } from "@/features/date-range/date-range";
 import { resolveSite } from "@/features/site-selection/site-selection";
 
@@ -14,10 +14,12 @@ export async function POST(request: Request) {
     const site = resolveSite(body as Record<string, string | string[] | undefined>);
     const dataset = await loadAnalysisDataset({ ...range, site });
     const result = await analyzeWithConfiguredProvider(dataset, body.question);
-    const periodStart = range.startDate;
-    const periodEnd = range.endDate;
-    saveAnalysis(result, periodStart, periodEnd, site);
-    return NextResponse.json({ ok: true, result });
+    await savePersistedAnalysis(
+      { siteKey: site, startDate: range.startDate, endDate: range.endDate },
+      body.question || "",
+      result,
+    );
+    return NextResponse.json({ ok: true, result, persisted: true });
   } catch (error) {
     return NextResponse.json(
       { ok: false, error: error instanceof Error ? error.message : "分析失败" },

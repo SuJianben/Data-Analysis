@@ -27,6 +27,13 @@ export const sites = {
     domain: "belgiumkits.com",
     platform: "shopline",
   },
+  dtk: {
+    key: "dtk",
+    shortLabel: "DTK",
+    label: "Deintrikot",
+    domain: "deintrikot.at",
+    platform: "shopline",
+  },
 } as const;
 
 export type SiteKey = keyof typeof sites;

@@ -1,6 +1,11 @@
 // TMS GA4 ecommerce + unified Signal journey - Shopify Customer Events
 const GA4_MEASUREMENT_ID = 'G-6CCD7E5TD3';
-const TMS_SIGNAL_EVENT_ENDPOINT = 'https://tms-signal-user-events.trustmereview.workers.dev/v1/events';
+const TMS_SIGNAL_EVENT_ENDPOINT = 'https://multi-site-analytics.vercel.app/api/events';
+const PURCHASE_DELIVERY_VERSION = '2026-09-18.purchase-fastpath-v2';
+const SIGNAL_RETRY_DELAYS = {
+  begin_checkout: [0, 1500],
+  purchase: [0, 1500, 5000, 15000],
+};
 
 const script = document.createElement('script');
 script.setAttribute('src', 'https://www.googletagmanager.com/gtag/js?id=' + GA4_MEASUREMENT_ID);
@@ -48,6 +53,16 @@ function checkoutItems(checkout) {
   });
 }
 
+function signalPurchaseItems(checkout) {
+  return checkoutItems(checkout).slice(0, 12).map((item) => ({
+    itemId: safeText(item.item_id, 140),
+    itemName: safeText(item.item_name, 180),
+    itemVariant: safeText(item.item_variant, 120),
+    price: Number.isFinite(item.price) ? item.price : 0,
+    quantity: Math.max(1, Number(item.quantity || 1)),
+  })).filter((item) => item.itemId || item.itemName);
+}
+
 function safeIdentifier(value, fallback = '') {
   const normalized = String(value || '').replace(/[^a-zA-Z0-9._:-]/g, '_').slice(0, 140);
   return normalized.length >= 8 ? normalized : fallback;
@@ -55,6 +70,10 @@ function safeIdentifier(value, fallback = '') {
 
 function safeText(value, maxLength) {
   return String(value || '').replace(/\s+/g, ' ').trim().slice(0, maxLength);
+}
+
+function wait(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 async function sha256(value) {
@@ -98,6 +117,45 @@ async function signalEventId(eventName, event, identity, fields) {
   return `shopify_${eventName}_dedupe_${signatureHash.slice(0, 24)}_${bucket.toString(36)}`;
 }
 
+async function deliverSignal(eventName, payload) {
+  const delays = SIGNAL_RETRY_DELAYS[eventName] || [0];
+  let lastStatus = 0;
+  let lastCode = 'network_error';
+  for (let attempt = 0; attempt < delays.length; attempt += 1) {
+    if (delays[attempt] > 0) await wait(delays[attempt]);
+    try {
+      const response = await fetch(TMS_SIGNAL_EVENT_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+        body: JSON.stringify(payload),
+        keepalive: true,
+      });
+      lastStatus = Number(response.status || 0);
+      if (response.ok) return;
+      try {
+        const result = await response.json();
+        lastCode = safeText(result?.code || 'http_error', 80);
+      } catch {
+        lastCode = 'http_error';
+      }
+      if (lastStatus !== 429 && lastStatus < 500) break;
+    } catch {
+      lastStatus = 0;
+      lastCode = 'network_error';
+    }
+  }
+  if (eventName === 'purchase' || eventName === 'begin_checkout') {
+    gtag('event', 'signal_delivery_error', {
+      signal_event_name: eventName,
+      signal_http_status: lastStatus,
+      signal_error_code: lastCode,
+      signal_attempts: delays.length,
+      non_interaction: true,
+    });
+  }
+  throw new Error(`Signal delivery failed: ${eventName}/${lastStatus}/${lastCode}`);
+}
+
 async function sendSignal(eventName, event, fields = {}, metadata = {}, rawCustomerId = '') {
   const identity = signalIdentity(event);
   const windowSeconds = eventName === 'page_view' ? 300 : eventName === 'global_click' ? 5 : 0;
@@ -121,12 +179,39 @@ async function sendSignal(eventName, event, fields = {}, metadata = {}, rawCusto
     },
   };
   if (customerIdHash) signalEvent.customerIdHash = customerIdHash;
-  await fetch(TMS_SIGNAL_EVENT_ENDPOINT, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-    body: JSON.stringify({ siteKey: 'tms', source: 'shopify_pixel:tms', event: signalEvent }),
-    keepalive: true,
+  await deliverSignal(eventName, { siteKey: 'tms', source: 'shopify_pixel:tms', event: signalEvent });
+}
+
+function sendPurchaseSignal(event, checkout, items, itemCount) {
+  const identity = signalIdentity(event);
+  const signalEvent = {
+    eventId: `shopify_purchase_${safeIdentifier(event.id, String(Date.now())).slice(0, 120)}`,
+    visitorId: identity.visitorId,
+    eventName: 'purchase',
+    occurredAt: event.timestamp || new Date().toISOString(),
+    pagePath: safeText(pagePath(event, '/checkouts/thank-you'), 2000),
+    elementKey: '',
+    elementLabel: '',
+    pageSection: 'checkout',
+    destinationPath: '',
+    clickTarget: 'checkout_completed',
+    deviceCategory: deviceCategory(event),
+    metadata: {
+      currency: safeText(checkout?.currencyCode, 3).toUpperCase(),
+      value: Number(checkout?.totalPrice?.amount || 0),
+      itemCount,
+      items,
+      itemsTruncated: (checkout?.lineItems || []).length > items.length,
+      identitySource: identity.identitySource,
+      deliveryVersion: PURCHASE_DELIVERY_VERSION,
+      idempotencySource: 'shopify_event_id',
+    },
+  };
+  gtag('event', 'signal_purchase_attempt', {
+    signal_delivery_version: PURCHASE_DELIVERY_VERSION,
+    non_interaction: true,
   });
+  return deliverSignal('purchase', { siteKey: 'tms', source: 'shopify_pixel:tms', event: signalEvent });
 }
 
 analytics.subscribe('page_viewed', (event) => {
@@ -181,6 +266,10 @@ analytics.subscribe('checkout_completed', (event) => {
     .map((discount) => discount.title || discount.code)
     .filter(Boolean)
     .join(', ');
+  const lineItems = Array.isArray(checkout?.lineItems) ? checkout.lineItems : [];
+  const itemCount = lineItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+  const signalItems = signalPurchaseItems(checkout);
+  const signalDelivery = sendPurchaseSignal(event, checkout, signalItems, itemCount);
   gtag('event', 'purchase', {
     ...eventPage(event),
     transaction_id: checkout?.order?.id,
@@ -191,18 +280,7 @@ analytics.subscribe('checkout_completed', (event) => {
     coupon: coupon || undefined,
     items: checkoutItems(checkout),
   });
-  const lineItems = Array.isArray(checkout?.lineItems) ? checkout.lineItems : [];
-  const itemCount = lineItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
-  sha256(checkout?.order?.id || '').then((orderIdHash) => sendSignal('purchase', event, {
-    pagePath: pagePath(event, '/checkouts/thank-you'),
-    pageSection: 'checkout',
-    clickTarget: 'checkout_completed',
-  }, {
-    currency: checkout?.currencyCode || '',
-    value: Number(checkout?.totalPrice?.amount || 0),
-    itemCount,
-    orderIdHash,
-  }, checkout?.order?.customer?.id || checkout?.customer?.id || '')).catch(() => {});
+  signalDelivery.catch(() => {});
 });
 
 analytics.subscribe('all_custom_events', (event) => {

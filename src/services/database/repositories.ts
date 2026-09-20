@@ -462,6 +462,17 @@ export function getLatestAnalysis(): AnalysisResult | null {
   return row ? (JSON.parse(row.value) as AnalysisResult) : null;
 }
 
+export function getAnalysisForPeriod(periodStart: string, periodEnd: string, siteKey: SiteKey): AnalysisResult | null {
+  const row = db.prepare(`
+    SELECT result_json AS value
+    FROM analyses
+    WHERE site_key = ? AND period_start = ? AND period_end = ?
+    ORDER BY id DESC
+    LIMIT 1
+  `).get(siteKey, periodStart, periodEnd) as { value: string } | undefined;
+  return row ? (JSON.parse(row.value) as AnalysisResult) : null;
+}
+
 export function getDatabaseStats() {
   const menuRows = db.prepare("SELECT COUNT(*) AS value FROM menu_click_metrics").get() as CountRow;
   const metricRows = db.prepare("SELECT COUNT(*) AS value FROM site_metrics").get() as CountRow;

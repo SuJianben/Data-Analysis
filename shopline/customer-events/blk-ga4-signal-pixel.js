@@ -1,6 +1,11 @@
 // BLK GA4 ecommerce + Signal purchase - SHOPLINE Customer Events
 const GA4_MEASUREMENT_ID = "G-TRCFQDSHYR";
-const BLK_SIGNAL_EVENT_ENDPOINT = "https://blk-signal-user-events.trustmereview.workers.dev/v1/events";
+const BLK_SIGNAL_EVENT_ENDPOINT = "https://multi-site-analytics.vercel.app/api/events";
+const PURCHASE_DELIVERY_VERSION = "2026-09-18.purchase-fastpath-v2";
+const SIGNAL_RETRY_DELAYS = {
+  begin_checkout: [0, 1500],
+  purchase: [0, 1500, 5000, 15000],
+};
 
 const script = document.createElement("script");
 script.setAttribute("src", "https://www.googletagmanager.com/gtag/js?id=" + GA4_MEASUREMENT_ID);
@@ -51,9 +56,23 @@ function shoplineItems(list) {
   }));
 }
 
+function signalPurchaseItems(list) {
+  return shoplineItems(list).slice(0, 12).map((item) => ({
+    itemId: String(item.item_id || "").replace(/\s+/g, " ").trim().slice(0, 140),
+    itemName: String(item.item_name || "").replace(/\s+/g, " ").trim().slice(0, 180),
+    itemVariant: String(item.item_variant || "").replace(/\s+/g, " ").trim().slice(0, 120),
+    price: Number.isFinite(item.price) ? item.price : 0,
+    quantity: Math.max(1, Number(item.quantity || 1)),
+  })).filter((item) => item.itemId || item.itemName);
+}
+
 function safeIdentifier(value, fallback) {
   const normalized = String(value || "").replace(/[^a-zA-Z0-9._:-]/g, "_").slice(0, 140);
   return normalized.length >= 8 ? normalized : fallback;
+}
+
+function wait(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function isoTimestamp(value) {
@@ -78,9 +97,10 @@ function deviceCategory(event) {
 
 function signalEvent(event, eventName, overrides = {}) {
   const identity = safeIdentifier(event.clientId || event.id, "shopline_client");
+  const platformEventId = safeIdentifier(event.id, identity);
   const identitySource = event.clientId ? "shopline_client_id" : "shopline_event_fallback";
   return {
-    eventId: safeIdentifier(`shopline_${eventName}_${event.id}`, `shopline_${eventName}_${identity}`),
+    eventId: safeIdentifier(`shopline_${eventName}_${platformEventId}`, `shopline_${eventName}_${identity}`),
     visitorId: safeIdentifier(`visitor_shopline_${identity}`, "visitor_shopline_unknown"),
     eventName,
     occurredAt: isoTimestamp(event.timestamp),
@@ -95,30 +115,58 @@ function signalEvent(event, eventName, overrides = {}) {
 }
 
 async function sendSignal(event) {
-  await fetch(BLK_SIGNAL_EVENT_ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain;charset=UTF-8" },
-    body: JSON.stringify({ siteKey: "blk", source: "shopline_pixel:blk", event }),
-    keepalive: true,
-  });
+  const delays = SIGNAL_RETRY_DELAYS[event.eventName] || [0];
+  const payload = { siteKey: "blk", source: "shopline_pixel:blk", event };
+  let lastStatus = 0;
+  let lastCode = "network_error";
+  for (let attempt = 0; attempt < delays.length; attempt += 1) {
+    if (delays[attempt] > 0) await wait(delays[attempt]);
+    try {
+      const response = await fetch(BLK_SIGNAL_EVENT_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=UTF-8" },
+        body: JSON.stringify(payload),
+        keepalive: true,
+      });
+      lastStatus = Number(response.status || 0);
+      if (response.ok) return;
+      try {
+        const result = await response.json();
+        lastCode = String(result?.code || "http_error").slice(0, 80);
+      } catch {
+        lastCode = "http_error";
+      }
+      if (lastStatus !== 429 && lastStatus < 500) break;
+    } catch {
+      lastStatus = 0;
+      lastCode = "network_error";
+    }
+  }
+  if (event.eventName === "purchase" || event.eventName === "begin_checkout") {
+    gtag("event", "signal_delivery_error", {
+      signal_event_name: event.eventName,
+      signal_http_status: lastStatus,
+      signal_error_code: lastCode,
+      signal_attempts: delays.length,
+      non_interaction: true,
+    });
+  }
+  throw new Error(`Signal delivery failed: ${event.eventName}/${lastStatus}/${lastCode}`);
 }
 
-async function sendSignalPurchase(event) {
+function sendSignalPurchase(event) {
   const data = event.data || {};
   const order = data.checkout?.order || {};
-  const rawOrderId = data.orderSeq || data.appOrderSeq || order.token || "";
   const list = Array.isArray(data.list) ? data.list : [];
   const itemCount = list.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
-  if (!rawOrderId || itemCount < 1) return;
+  const items = signalPurchaseItems(list);
+  if (itemCount < 1) return Promise.reject(new Error("SHOPLINE purchase is missing line items"));
 
   const fallbackSeed = safeIdentifier(event.clientId || event.id, "shopline_event");
-  const [customerIdHash, orderIdHash] = await Promise.all([
-    sha256(data.customer_id || ""),
-    sha256(rawOrderId),
-  ]);
+  const platformEventId = safeIdentifier(event.id, fallbackSeed);
   const currency = String(data.currency || order.currency_code || "").toUpperCase();
   const purchaseEvent = signalEvent(event, "purchase", {
-    eventId: safeIdentifier("shopline_purchase_" + event.id, "shopline_purchase_" + fallbackSeed),
+    eventId: safeIdentifier("shopline_purchase_" + platformEventId, "shopline_purchase_" + fallbackSeed),
     pagePath: pagePath(event, "/checkouts/thank-you"),
     pageSection: "checkout",
     clickTarget: "checkout_completed",
@@ -126,12 +174,18 @@ async function sendSignalPurchase(event) {
       currency,
       value: Number(data.value ?? order.total_price ?? 0),
       itemCount,
-      orderIdHash,
+      items,
+      itemsTruncated: list.length > items.length,
       platform: "shopline",
+      deliveryVersion: PURCHASE_DELIVERY_VERSION,
+      idempotencySource: "shopline_event_id",
     },
   });
-  if (customerIdHash) purchaseEvent.customerIdHash = customerIdHash;
-  await sendSignal(purchaseEvent);
+  gtag("event", "signal_purchase_attempt", {
+    signal_delivery_version: PURCHASE_DELIVERY_VERSION,
+    non_interaction: true,
+  });
+  return sendSignal(purchaseEvent);
 }
 
 analytics.subscribe("blk_signal_click", (event) => {
@@ -226,6 +280,7 @@ analytics.subscribe("checkout_started", (event) => {
 analytics.subscribe("checkout_completed", (event) => {
   const data = event.data || {};
   const order = data.checkout?.order || {};
+  const signalDelivery = sendSignalPurchase(event);
   gtag("event", "purchase", {
     ...pageDetails(event),
     transaction_id: data.orderSeq || data.appOrderSeq || order.token,
@@ -236,5 +291,5 @@ analytics.subscribe("checkout_completed", (event) => {
     coupon: data.coupon || undefined,
     items: shoplineItems(data.list),
   });
-  sendSignalPurchase(event).catch(() => {});
+  signalDelivery.catch(() => {});
 });

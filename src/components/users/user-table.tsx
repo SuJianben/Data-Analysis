@@ -6,27 +6,9 @@ import type { UserSummaryRow } from "@/types/analytics";
 import { formatNumber } from "@/utils/format";
 import { Pagination } from "@/components/data-table/pagination";
 import { userIdentityDescription, userIdentityTypeLabel } from "@/features/users/identity";
+import { formatShanghaiMonthDayTime } from "@/utils/date-time";
 
 const PAGE_SIZE = 20;
-
-function formatDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Shanghai",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  }).formatToParts(date).reduce<Record<string, string>>((result, part) => {
-    if (part.type !== "literal") result[part.type] = part.value;
-    return result;
-  }, {});
-  return `${Number(parts.month)}/${Number(parts.day)} ${parts.hour}:${parts.minute}:${parts.second}`;
-}
 
 export function UserTable({ rows, rangeQuery }: { rows: UserSummaryRow[]; rangeQuery: string }) {
   const [page, setPage] = useState(1);
@@ -51,8 +33,8 @@ export function UserTable({ rows, rangeQuery }: { rows: UserSummaryRow[]; rangeQ
             {pageRows.map((row) => (
               <tr key={row.identityKey}>
                 <td><strong>{userIdentityTypeLabel(row.identityType)} {row.identityId.slice(0, 10)}</strong><small>{userIdentityDescription(row.identityType)}</small></td>
-                <td>{formatDate(row.firstSeenAt)}</td>
-                <td>{formatDate(row.lastSeenAt)}</td>
+                <td>{formatShanghaiMonthDayTime(row.firstSeenAt)}</td>
+                <td>{formatShanghaiMonthDayTime(row.lastSeenAt)}</td>
                 <td>{formatNumber(row.visitorCount)}</td>
                 <td>{formatNumber(row.pagesVisited)}</td>
                 <td>{formatNumber(row.eventCount)}</td>

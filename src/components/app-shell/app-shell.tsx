@@ -6,7 +6,7 @@ import { SiteBreadcrumb } from "@/components/app-shell/site-breadcrumb";
 import { RouteMotion } from "@/components/motion/route-motion";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const usesCloudflare = Boolean(process.env.USER_EVENT_API_URL?.trim());
+  const usesLocalPrimary = process.env.ANALYTICS_READ_MODE === "local" || !process.env.USER_EVENT_API_URL?.trim();
 
   return (
     <div className="app-frame">
@@ -19,8 +19,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="sidebar-foot">
           <span className="status-dot" />
           <div>
-            <strong>{usesCloudflare ? "Cloudflare D1" : "本机数据库"}</strong>
-            <small>{usesCloudflare ? "云端数据已连接" : "本机数据已连接"}</small>
+            <strong>{usesLocalPrimary ? "本地主数据库" : "迁移兼容模式"}</strong>
+            <small>{usesLocalPrimary ? "Vercel 接收 · 自动同步" : "Cloudflare 读取兼容中"}</small>
           </div>
         </div>
       </aside>

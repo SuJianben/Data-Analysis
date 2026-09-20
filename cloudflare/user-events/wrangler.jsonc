@@ -10,8 +10,15 @@
   },
   "vars": {
     "ALLOWED_ORIGINS": "https://turkforma.com,https://www.turkforma.com,https://mezkiraly.com,https://www.mezkiraly.com,https://footballkituk.com,https://www.footballkituk.com,https://belgiumkits.com,https://www.belgiumkits.com",
+    "EVENT_FORWARD_URL": "https://multi-site-analytics.vercel.app/api/events",
     "SERVICE_NAME": "tkf-signal-user-events"
   },
+  "kv_namespaces": [
+    {
+      "binding": "SNAPSHOT_KV",
+      "id": "baab42803cb642fbb5264586bc9f616c"
+    }
+  ],
   "d1_databases": [
     {
       "binding": "DB",
