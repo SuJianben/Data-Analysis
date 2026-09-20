@@ -73,9 +73,20 @@ export async function saveEvents(env: Env, siteKey: SiteKey, source: string, eve
   return results.reduce((sum, result) => sum + Number(result.meta.changes || 0), 0);
 }
 
-export async function getUserSummaries(env: Env, limit: number, options: DateRangeOptions = {}) {
+type UserSummaryQuery = DateRangeOptions & { page?: number; pageSize?: number };
+
+function normalizedUserPage(options: UserSummaryQuery) {
+  const rawPageSize = Number(options.pageSize);
+  const rawPage = Number(options.page);
+  return {
+    pageSize: Number.isFinite(rawPageSize) ? Math.min(Math.max(Math.floor(rawPageSize), 1), 500) : 20,
+    requestedPage: Number.isFinite(rawPage) ? Math.max(Math.floor(rawPage), 1) : 1,
+  };
+}
+
+export async function getUserSummaryReport(env: Env, options: UserSummaryQuery = {}) {
   const filter = eventDateFilter(options);
-  const result = await env.DB.prepare(`${RESOLVED_EVENTS_CTE}
+  const groupedQuery = `
     SELECT
       identity_key AS identityKey,
       identity_type AS identityType,
@@ -90,10 +101,34 @@ export async function getUserSummaries(env: Env, limit: number, options: DateRan
     FROM resolved_user_events
     ${filter.clause}
     GROUP BY identity_key, identity_type, identity_id
+  `;
+  const totals = await env.DB.prepare(`${RESOLVED_EVENTS_CTE}
+    SELECT COUNT(*) AS totalItems, COALESCE(SUM(eventCount), 0) AS totalValue
+    FROM (${groupedQuery})
+  `).bind(...filter.values).first<{ totalItems: number; totalValue: number }>();
+  const { pageSize, requestedPage } = normalizedUserPage(options);
+  const totalItems = Number(totals?.totalItems || 0);
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const page = Math.min(requestedPage, totalPages);
+  const result = await env.DB.prepare(`${RESOLVED_EVENTS_CTE}
+    ${groupedQuery}
     ORDER BY lastSeenAt DESC
-    LIMIT ?
-  `).bind(...filter.values, limit).all<UserSummaryRow>();
-  return result.results;
+    LIMIT ? OFFSET ?
+  `).bind(...filter.values, pageSize, (page - 1) * pageSize).all<UserSummaryRow>();
+  return {
+    rows: result.results,
+    pagination: {
+      page,
+      pageSize,
+      totalItems,
+      totalPages,
+      totalValue: Number(totals?.totalValue || 0),
+    },
+  };
+}
+
+export async function getUserSummaries(env: Env, limit: number, options: DateRangeOptions = {}) {
+  return (await getUserSummaryReport(env, { ...options, page: 1, pageSize: limit })).rows;
 }
 
 export async function getUserTrend(env: Env, options: DateRangeOptions = {}) {

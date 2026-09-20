@@ -268,6 +268,16 @@ export type UserSummaryRow = {
   purchaseCount: number;
 };
 
+export type UserSummaryQuery = DateRangeOptions & {
+  page?: number;
+  pageSize?: number;
+};
+
+export type UserSummaryReport = {
+  rows: UserSummaryRow[];
+  pagination: PaginationMeta;
+};
+
 export type UserEventRow = UserEventInput & { receivedAt: string };
 
 export type SyncRun = {

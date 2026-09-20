@@ -1,5 +1,5 @@
 import { db } from "@/services/database/db";
-import type { DateRangeOptions, DeviceStatPoint, UserEventInput, UserEventRow, UserSummaryRow, UserTrendPoint } from "@/types/analytics";
+import type { DateRangeOptions, DeviceStatPoint, UserEventInput, UserEventRow, UserSummaryQuery, UserSummaryReport, UserSummaryRow, UserTrendPoint } from "@/types/analytics";
 import type { SiteKey } from "@/config/sites";
 
 const isoNow = () => new Date().toISOString();
@@ -127,9 +127,18 @@ export function hasLocalUserEvents() {
   return (db.prepare("SELECT EXISTS(SELECT 1 FROM user_events LIMIT 1) AS value").get() as { value: number }).value === 1;
 }
 
-export function getUserSummaries(limit = 200, options: DateRangeOptions = {}): UserSummaryRow[] {
+function normalizedUserPage(options: UserSummaryQuery) {
+  const rawPageSize = Number(options.pageSize);
+  const rawPage = Number(options.page);
+  return {
+    pageSize: Number.isFinite(rawPageSize) ? Math.min(Math.max(Math.floor(rawPageSize), 1), 500) : 20,
+    requestedPage: Number.isFinite(rawPage) ? Math.max(Math.floor(rawPage), 1) : 1,
+  };
+}
+
+export function getUserSummaryReport(options: UserSummaryQuery = {}): UserSummaryReport {
   const filter = eventDateFilter(options);
-  return db.prepare(`${RESOLVED_USER_EVENTS_CTE}
+  const groupedQuery = `
     SELECT
       identity_key AS identityKey,
       identity_type AS identityType,
@@ -144,9 +153,34 @@ export function getUserSummaries(limit = 200, options: DateRangeOptions = {}): U
     FROM resolved_user_events
     ${filter.clause}
     GROUP BY identity_key, identity_type, identity_id
+  `;
+  const totals = db.prepare(`${RESOLVED_USER_EVENTS_CTE}
+    SELECT COUNT(*) AS totalItems, COALESCE(SUM(eventCount), 0) AS totalValue
+    FROM (${groupedQuery})
+  `).get(...filter.values) as { totalItems: number; totalValue: number } | undefined;
+  const { pageSize, requestedPage } = normalizedUserPage(options);
+  const totalItems = Number(totals?.totalItems || 0);
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const page = Math.min(requestedPage, totalPages);
+  const rows = db.prepare(`${RESOLVED_USER_EVENTS_CTE}
+    ${groupedQuery}
     ORDER BY lastSeenAt DESC
-    LIMIT ?
-  `).all(...filter.values, limit) as UserSummaryRow[];
+    LIMIT ? OFFSET ?
+  `).all(...filter.values, pageSize, (page - 1) * pageSize) as UserSummaryRow[];
+  return {
+    rows,
+    pagination: {
+      page,
+      pageSize,
+      totalItems,
+      totalPages,
+      totalValue: Number(totals?.totalValue || 0),
+    },
+  };
+}
+
+export function getUserSummaries(limit = 200, options: DateRangeOptions = {}): UserSummaryRow[] {
+  return getUserSummaryReport({ ...options, page: 1, pageSize: limit }).rows;
 }
 
 export function getUserTrend(options: DateRangeOptions = {}): UserTrendPoint[] {

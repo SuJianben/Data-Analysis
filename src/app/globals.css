@@ -503,6 +503,11 @@ a { color: inherit; text-decoration: none; }
 .pagination-controls button { min-height: 30px; padding: 0 9px; border: 1px solid var(--line); border-radius: 4px; background: transparent; color: var(--ink); cursor: pointer; font-size: 10px; transition: background .16s ease, border .16s ease, opacity .16s ease; }
 .pagination-controls button:hover:not(:disabled) { border-color: var(--line-strong); background: white; }
 .pagination-controls button:disabled { cursor: not-allowed; opacity: .35; }
+.pagination-jump { display: flex; align-items: center; gap: 6px; margin-left: 2px; }
+.pagination-jump label, .pagination-jump span { color: var(--muted); font-size: 10px; }
+.pagination-jump input { width: 54px; min-height: 30px; padding: 0 6px; border: 1px solid var(--line); border-radius: 4px; background: rgba(255,255,255,.45); color: var(--ink); text-align: center; font-size: 10px; font-variant-numeric: tabular-nums; outline: none; }
+.pagination-jump input:focus { border-color: var(--blue); background: white; }
+.pagination-jump input:disabled { opacity: .5; }
 .table-tools h2.inline-section-title { margin: 6px 0 0; font-size: 20px; letter-spacing: -.03em; }
 .table-link, .back-link { color: var(--blue); font-size: 11px; }
 .back-link { display: block; margin-bottom: 22px; }
@@ -682,6 +687,7 @@ a { color: inherit; text-decoration: none; }
   .search-field { min-width: 100%; }
   .table-total { margin-left: 0; }
   .pagination { align-items: flex-start; flex-direction: column; padding: 14px 0 4px; gap: 10px; }
+  .pagination-controls { flex-wrap: wrap; }
   .source-heading { grid-template-columns: 32px 1fr; }
   .source-badge, .source-heading > code { grid-column: 2; justify-self: start; }
   .form-grid { padding-left: 0; grid-template-columns: 1fr; }

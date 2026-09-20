@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { loadUserSummaries } from "@/services/connectors/user-events";
+import { loadUserSummaryReport } from "@/services/connectors/user-events";
 import { resolveDateRange } from "@/features/date-range/date-range";
 import { resolveSite } from "@/features/site-selection/site-selection";
 
@@ -7,9 +7,12 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const limitValue = Number(url.searchParams.get("limit") || 200);
-  const limit = Number.isFinite(limitValue) ? Math.min(Math.max(Math.floor(limitValue), 1), 500) : 200;
+  const pageValue = Number(url.searchParams.get("page") || 1);
+  const pageSizeValue = Number(url.searchParams.get("pageSize") || url.searchParams.get("limit") || 20);
+  const page = Number.isFinite(pageValue) ? Math.max(Math.floor(pageValue), 1) : 1;
+  const pageSize = Number.isFinite(pageSizeValue) ? Math.min(Math.max(Math.floor(pageSizeValue), 1), 100) : 20;
   const range = resolveDateRange(Object.fromEntries(url.searchParams.entries()));
   const site = resolveSite(url.searchParams);
-  return NextResponse.json({ ok: true, rows: await loadUserSummaries(limit, { ...range, site }) });
+  const report = await loadUserSummaryReport({ ...range, site, page, pageSize });
+  return NextResponse.json({ ok: true, ...report });
 }

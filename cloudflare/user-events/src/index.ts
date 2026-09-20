@@ -1,6 +1,6 @@
 import { corsHeaders, hasReadAccess, hasServerIngestAccess, isBrowserOriginAllowed, json } from "./http";
 import { handleAnalyticsRequest } from "./analytics-routes";
-import { getUserDeviceBreakdown, getUserEvents, getUserSummaries, getUserTrend } from "./repository";
+import { getUserDeviceBreakdown, getUserEvents, getUserSummaryReport, getUserTrend } from "./repository";
 import type { Env } from "./types";
 import { parseIdentityKey, parseUserEventPayload } from "./validation";
 import { parseDateRange } from "./date-range";
@@ -67,10 +67,12 @@ async function ingest(request: Request, env: Env) {
 async function listUsers(request: Request, env: Env) {
   if (!hasReadAccess(request, env)) return json(request, env, { ok: false, error: "读取凭证无效。" }, 401);
   const url = new URL(request.url);
-  const value = Number(url.searchParams.get("limit") || 200);
-  const limit = Number.isFinite(value) ? Math.min(Math.max(Math.floor(value), 1), 500) : 200;
+  const pageValue = Number(url.searchParams.get("page") || 1);
+  const pageSizeValue = Number(url.searchParams.get("pageSize") || url.searchParams.get("limit") || 20);
+  const page = Number.isFinite(pageValue) ? Math.max(Math.floor(pageValue), 1) : 1;
+  const pageSize = Number.isFinite(pageSizeValue) ? Math.min(Math.max(Math.floor(pageSizeValue), 1), 500) : 20;
   try {
-    return json(request, env, { ok: true, rows: await getUserSummaries(env, limit, parseDateRange(url)) });
+    return json(request, env, { ok: true, ...(await getUserSummaryReport(env, { ...parseDateRange(url), page, pageSize })) });
   } catch (error) {
     return json(request, env, { ok: false, error: error instanceof Error ? error.message : "时间范围不正确。" }, 400);
   }

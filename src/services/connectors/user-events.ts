@@ -4,14 +4,15 @@ import { cloudflareRead } from "@/services/connectors/cloudflare-request";
 import { readWithLocalFallback } from "@/services/connectors/data-source-fallback";
 import {
   getUserEvents as getLocalUserEvents,
+  getUserSummaryReport as getLocalUserSummaryReport,
   getUserSummaries as getLocalUserSummaries,
   getUserTrend as getLocalUserTrend,
   getUserDeviceBreakdown as getLocalUserDeviceBreakdown,
   hasLocalUserEvents,
 } from "@/services/database/user-event-repository";
-import type { DateRangeOptions, DeviceStatPoint, UserEventRow, UserSummaryRow, UserTrendPoint } from "@/types/analytics";
+import type { DateRangeOptions, DeviceStatPoint, UserEventRow, UserSummaryQuery, UserSummaryReport, UserSummaryRow, UserTrendPoint } from "@/types/analytics";
 
-type UserSummaryResponse = { ok: boolean; rows?: UserSummaryRow[]; error?: string };
+type UserSummaryResponse = { ok: boolean; rows?: UserSummaryRow[]; pagination?: UserSummaryReport["pagination"]; error?: string };
 type UserDetailResponse = { ok: boolean; events?: UserEventRow[]; error?: string };
 type UserTrendResponse = { ok: boolean; trend?: UserTrendPoint[]; error?: string };
 type UserDeviceResponse = { ok: boolean; devices?: DeviceStatPoint[]; error?: string };
@@ -40,6 +41,21 @@ export async function loadUserSummaries(limit = 200, options: DateRangeOptions =
       query.set("limit", String(limit));
       const payload = await cloudflareRead<UserSummaryResponse>(`/users?${query.toString()}`, { errorLabel: "用户摘要读取" });
       return payload.rows || [];
+    },
+  });
+}
+
+export async function loadUserSummaryReport(options: UserSummaryQuery = {}): Promise<UserSummaryReport> {
+  return readWithLocalFallback({
+    label: "用户分页摘要",
+    local: () => requireLocalUserEvents(() => getLocalUserSummaryReport(options)),
+    cloudflare: async () => {
+      const query = rangeQuery(options);
+      if (options.page) query.set("page", String(options.page));
+      if (options.pageSize) query.set("pageSize", String(options.pageSize));
+      const payload = await cloudflareRead<UserSummaryResponse>(`/users?${query.toString()}`, { errorLabel: "用户分页摘要读取" });
+      if (!payload.pagination) throw new Error("用户分页摘要缺少分页信息。");
+      return { rows: payload.rows || [], pagination: payload.pagination };
     },
   });
 }
