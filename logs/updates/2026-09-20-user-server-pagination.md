@@ -32,7 +32,10 @@
 - 主项目与 Worker TypeScript 检查通过。
 - Next.js 正式构建通过。
 - Playwright 已验证第 100 页跳转、日期范围变化、页码自动复位和总页数重算。
-- 待完成 Worker 与 Vercel 生产部署后的线上复核。
+- Cloudflare Worker 与 Vercel 生产部署已完成。
+- 正式域名 `https://multi-site-analytics.vercel.app` 已通过线上真实链路复核：FKK 2026-09-14 至 2026-09-20 共 5,050 位用户、253 页，第 100 页显示第 1,981 至 2,000 条。
+- 将日期改为 2026-09-19 至 2026-09-20 后，线上自动重算为 1,470 位用户、74 页，并回到第 1 页。
+- 误恢复的 `tkf-signal.vercel.app` 旧别名已再次移除，仅保留 multi 域名作为正式入口。
 
 ## 遗留问题
 
