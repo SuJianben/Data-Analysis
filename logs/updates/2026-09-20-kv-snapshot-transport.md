@@ -39,3 +39,9 @@
 
 - Vercel 项目尚未与 GitHub 自动部署连接；当前生产发布通过已授权的本机 Vercel CLI 完成。
 - 购买埋点完整性仍需继续与各站自然订单逐单对账，快照恢复不等于埋点准确性已经最终验收。
+
+## 域名清理
+
+- 保留正式域名 `https://multi-site-analytics.vercel.app` 及 Vercel 自动生成的同名团队域名。
+- 删除旧别名 `https://tkf-signal.vercel.app` 和 `https://tkf-signal-guage5751-3680s-projects.vercel.app`，未删除项目或数据。
+- 清理后正式域名健康检查正常并读取 33,232 条事件；两个旧域名均返回 404。
