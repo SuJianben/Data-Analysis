@@ -74,6 +74,14 @@ emit('page_viewed', {
   id: 'page-event-0001', clientId, timestamp: '2026-09-15T01:00:00.000Z',
   context: eventContext('/products/example-shirt'), data: {},
 });
+emit('product_viewed', {
+  id: 'product-event-001', clientId, timestamp: '2026-09-15T01:00:01.000Z',
+  context: eventContext('/products/example-shirt'),
+  data: { productVariant: {
+    id: 'variant-77', sku: 'FKK-77', title: 'M', price: { amount: 20, currencyCode: 'GBP' },
+    product: { title: 'Example shirt', vendor: 'FKK', type: 'Football shirt' },
+  } },
+});
 emit('all_custom_events', {
   id: 'click-event-0001', clientId, name: 'fkk:global_click', timestamp: '2026-09-15T01:00:05.000Z',
   context: eventContext('/products/example-shirt'),
@@ -91,6 +99,19 @@ emit('checkout_started', {
   id: 'checkout-event-1', clientId, timestamp: '2026-09-15T01:01:00.000Z',
   context: eventContext('/checkouts/example'),
   data: { checkout: { currencyCode: 'GBP', totalPrice: { amount: 40 }, lineItems: [] } },
+});
+const checkoutFunnel = {
+  currencyCode: 'GBP', totalPrice: { amount: 44 }, discountApplications: [{ code: 'SAVE10' }],
+  delivery: { selectedDeliveryOptions: [{ title: 'Express' }] },
+  lineItems: [{ quantity: 2, title: 'Example shirt', variant: { id: 'variant-77', sku: 'FKK-77', title: 'M', price: { amount: 20 } } }],
+};
+emit('checkout_shipping_info_submitted', {
+  id: 'shipping-event-1', clientId, timestamp: '2026-09-15T01:01:10.000Z',
+  context: eventContext('/checkouts/example'), data: { checkout: checkoutFunnel },
+});
+emit('payment_info_submitted', {
+  id: 'payment-event-1', clientId, timestamp: '2026-09-15T01:01:20.000Z',
+  context: eventContext('/checkouts/example'), data: { checkout: checkoutFunnel },
 });
 emit('checkout_completed', {
   id: 'purchase-event-1', clientId, timestamp: '2026-09-15T01:02:00.000Z',
@@ -117,6 +138,14 @@ assert.equal(purchaseEvent.metadata.orderIdHash, undefined);
 assert.equal(purchaseEvent.metadata.deliveryVersion, '2026-09-18.purchase-fastpath-v2');
 assert.equal(purchaseEvent.metadata.idempotencySource, 'shopify_event_id');
 assert.equal(purchaseEvent.metadata.itemCount, 2);
+const gaEvents = harness.dataLayer.filter((entry) => entry[0] === 'event');
+const gaEvent = (name) => gaEvents.find((entry) => entry[1] === name);
+assert.equal(gaEvent('view_item')[2].currency, 'GBP');
+assert.equal(gaEvent('view_item')[2].items[0].item_name, 'Example shirt');
+assert.equal(gaEvent('add_shipping_info')[2].shipping_tier, 'Express');
+assert.equal(gaEvent('add_shipping_info')[2].coupon, 'SAVE10');
+assert.equal(gaEvent('add_payment_info')[2].value, 44);
+assert.equal(gaEvent('add_payment_info')[2].items[0].quantity, 2);
 const serializedRequests = JSON.stringify(harness.requests.map((request) => request.payload));
 assert.equal(serializedRequests.includes('customer-42'), false, 'Signal 载荷泄露了原始客户 ID。');
 assert.equal(serializedRequests.includes('order-9001'), false, 'Signal 载荷泄露了原始订单 ID。');
@@ -200,4 +229,4 @@ assert.deepEqual(publishedEvents.map((event) => event.name), ['fkk:global_click'
 assert.equal(publishedEvents[0].data.element_key, 'ProductSubmitButton');
 assert.equal(publishedEvents[0].data.page_path, '/products/example-shirt');
 
-console.log('FKK Shopify Signal 完整链路模拟通过：主题事件已发布，5 类事件共用 clientId，购买使用立即发送版本。');
+console.log('FKK Shopify 完整链路模拟通过：GA4 新增 3 个漏斗事件，Signal 5 类事件数量与身份链保持不变。');

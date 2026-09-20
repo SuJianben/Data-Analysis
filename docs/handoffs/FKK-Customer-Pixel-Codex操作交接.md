@@ -58,7 +58,7 @@
 - 接收地址是 `https://multi-site-analytics.vercel.app/api/events`。
 - 存在 `2026-09-18.purchase-fastpath-v2` 和 `signal_purchase_attempt`。
 - 载荷是 `siteKey: 'fkk'` 和 `source: 'shopify_pixel:fkk'`。
-- 存在 `page_viewed`、`product_added_to_cart`、`checkout_started`、`checkout_completed`、`all_custom_events` 五个订阅。
+- 存在 `page_viewed`、`product_viewed`、`product_added_to_cart`、`checkout_started`、`checkout_shipping_info_submitted`、`payment_info_submitted`、`checkout_completed`、`all_custom_events` 八个订阅。
 - 存在 `event.clientId`、`shopify_client_` 和 `identitySource`。
 - 不再存在 `fkk_signal_visitor_id`、`browser.localStorage`、`browser.sessionStorage` 或 `hmac_sha256`。
 - `gtag('config', ...)` 保留 `send_page_view: false`，页面浏览由订阅统一发送。
@@ -69,7 +69,7 @@
 
 1. 列表里仍然只有一个 `FKK GA4`。
 2. 状态显示“已连接 / Connected”。
-3. 回读代码包含五个订阅和统一身份字段。
+3. 回读代码包含八个订阅和统一身份字段。
 4. GA4 ID、Worker 地址和站点标识全部正确。
 5. 没有修改其他 Pixel、主题或店铺配置。
 
@@ -79,7 +79,7 @@
 
 - 店铺标识是否为 `fbed87-94`。
 - Pixel 名称与连接状态。
-- 五个订阅是否齐全。
+- 八个订阅是否齐全。
 - 是否确认不存在旧 localStorage 身份逻辑。
 - 是否发现重复 Pixel、保存报错或连接失败。
 - 提供显示 Pixel 名称、状态以及关键代码搜索结果的截图。
