@@ -30,7 +30,7 @@
 - 五站埋点、购买快速通道、投递重试、购买证据及 Worker 来源校验测试通过。
 - Next.js 正式构建通过。
 - Worker 已部署并完成真实远程读写验证。
-- Vercel 生产版本已发布到 `https://tkf-signal.vercel.app`。
+- Vercel 生产版本已发布到正式多站点域名 `https://multi-site-analytics.vercel.app`；旧 `https://tkf-signal.vercel.app` 仅保留为回退别名。
 - `/api/health` 连续 3 次返回 200，线上稳定读取 33,232 条用户事件，不再间歇返回 Blob 暂停错误。
 - TMS、FKK、DTK 的用户行为页与数据健康页共 6 个页面均返回 200，未出现“数据源暂时不可用”。
 - 2026-09-18 至 2026-09-20 的线上用户行为统计核对为：TMS 3 次购买、FKK 2 次购买、DTK 1 次购买。

@@ -33,7 +33,7 @@
 - 远程快照中已核对 TMS 3 条、FKK 2 条、DTK 1 条近期购买。
 - AI 分析远程写入、读取和测试数据清理通过。
 - Windows 事件同步和完整同步任务最近执行结果均恢复为 0。
-- Vercel 生产版本已发布；`/api/health` 连续 3 次返回 200，并稳定显示 33,232 条用户事件。
+- Vercel 生产版本已发布至 `https://multi-site-analytics.vercel.app`；`/api/health` 连续 3 次返回 200，并稳定显示 33,232 条用户事件。旧 `https://tkf-signal.vercel.app` 仅保留为回退别名。
 - TMS、FKK、DTK 的用户行为页与数据健康页全部通过线上真实请求验证，没有再显示数据源不可用。
 - 线上 2026-09-18 至 2026-09-20 购买统计分别为 TMS 3、FKK 2、DTK 1，与发布快照一致。
 
